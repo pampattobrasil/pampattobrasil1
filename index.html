@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Empório Pampatto Brasil | Gestão</title>
+
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<div class="bg"><span class="twinkle"></span><span class="twinkle two"></span></div>
+<section class="page" id="loginPage">
+  <form class="login-card" id="loginForm">
+    <img src="assets/images/logo.jpg" class="logo" alt="Empório Pampatto Brasil" />
+    <h2>Bem-vindo de volta!</h2><p class="muted">Faça login para acessar o sistema</p>
+    <label>Usuário</label><div class="field"><span class="field-icon">♙</span><input id="login" placeholder="Digite seu usuário" autocomplete="username"></div>
+    <label>Senha</label><div class="field"><span class="field-icon">▣</span><input id="senha" type="password" placeholder="Digite sua senha" autocomplete="current-password"><button type="button" class="icon-btn" id="toggleSenha">◉</button></div>
+    <div id="capsAlert" class="alert">Caps Lock ativado.</div><div id="errorAlert" class="alert">Usuário ou senha inválidos.</div>
+    <div class="row"><label class="remember"><input type="checkbox" id="rememberMe"> Lembrar-me</label><a href="#" onclick="return false">Esqueceu a senha?</a></div>
+    <button class="btn full" type="submit">ENTRAR</button>
+    <p class="muted" style="margin-top:24px">Acesso administrativo inicial: teste / teste</p>
+  </form>
+</section>
+<section class="app" id="appPage">
+  <div class="app-shell">
+    <aside class="sidebar">
+      <img src="assets/images/logo.jpg" class="logo side-logo" alt="Empório Pampatto Brasil">
+      <nav class="nav">
+        <button class="active" data-tab="dashboard"><span class="nav-ico">⌂</span>Dashboard</button>
+        <button data-tab="produtos"><span class="nav-ico">▧</span>Produtos</button>
+        <button data-tab="carrinho" class="client-only"><span class="nav-ico">🛒</span>Carrinho <span class="badge" id="cartBadge" style="display:none">0</span></button>
+        <button data-tab="estoque" class="admin-only"><span class="nav-ico">▦</span>Estoque</button>
+        <button data-tab="pedidos"><span class="nav-ico">☷</span><span id="ordersMenuLabel">Pedidos</span></button>
+        <button data-tab="relatorios" class="admin-only"><span class="nav-ico">▤</span>Relatórios</button>
+        <button data-tab="empresa" class="admin-only"><span class="nav-ico">⚙</span>Clientes</button>
+        <div class="nav-spacer"></div><button id="logoutBtn"><span class="nav-ico">⇥</span>Sair</button>
+      </nav>
+    </aside>
+    <main class="main">
+      <div class="topbar"><div class="top-user"><span class="nav-ico">◎</span><div><strong id="currentUserName">Usuário</strong><br><span class="muted" id="currentUserRole"></span></div></div></div>
+      <section id="tab-dashboard" class="tab active">
+        <div class="metrics"><div class="metric admin-only"><span class="nav-ico">▣</span><div><span class="muted">VENDAS DO MÊS</span><div class="big small" id="metricSales">R$ 0,00</div></div></div><div class="metric"><span class="nav-ico">☷</span><div><span class="muted">PEDIDOS</span><div class="big" id="metricOrders">0</div></div></div><div class="metric"><span class="nav-ico">▦</span><div><span class="muted">PRODUTOS</span><div class="big" id="metricProducts">0</div></div></div><div class="metric admin-only"><span class="nav-ico">⊗</span><div><span class="muted">ESTOQUE BAIXO</span><div class="big" id="metricLow">0</div></div></div></div>
+        <div class="panel" style="margin-top:18px"><div class="panel-head"><div><h3>Produtos</h3><p class="muted">Selecione os produtos disponíveis</p></div><div class="tools"><div class="search"><input id="buscaDash" placeholder="Buscar produto..."></div><button class="btn admin-only" data-new-product>＋ Novo Produto</button></div></div><div id="dashProducts"></div></div>
+      </section>
+      <section id="tab-produtos" class="tab"><div class="panel"><div class="panel-head"><div><h3>Produtos</h3><p class="muted">Catálogo de produtos</p></div><div class="tools"><div class="search"><input id="buscaProdutos" placeholder="Buscar produto..."></div><button class="btn admin-only" data-new-product>＋ Novo Produto</button></div></div><div id="produtosView"></div></div></section>
+      <section id="tab-carrinho" class="tab"><div class="panel"><div class="panel-head"><div><h3>Carrinho</h3><p class="muted">Confira os produtos e valores antes de fazer o pedido.</p></div><div class="tools"><button class="outline-btn" id="clearCartBtn">Limpar carrinho</button><button class="btn" id="finishCartBtn">Fazer pedido</button></div></div><div id="cartNotice"></div><div id="cartView"></div></div></section>
+      <section id="tab-estoque" class="tab"><div class="panel"><div class="panel-head"><div><h3 id="stockFormTitle">Cadastrar produto</h3><p class="muted">Cadastre imagem, estoque e valor de venda.</p></div><div class="tools"><button class="outline-btn" id="exportBtn">Exportar backup</button><button class="outline-btn" id="importBtn">Importar backup</button><input type="file" class="hidden-file" id="importFile" accept="application/json"></div></div><form id="stockForm" class="grid"><input type="hidden" id="produtoId"><input id="nome" placeholder="Nome interno do produto"><input id="fabricante" placeholder="Fornecedor / fabricante"><input id="quantidade" type="number" min="0" step="0.01" placeholder="Quantidade"><input id="valor" type="number" min="0" step="0.01" placeholder="Valor unitário (R$)"><select id="tipo"><option>Carnes Bovinas</option><option>Carnes Suínas</option><option>Carnes de Frango</option><option>Miúdos de Frango</option><option>Embutidos</option><option>Industrializados</option><option>Peixes</option></select><input id="validade" type="date"><input id="imagem" type="file" accept="image/*"><button class="btn save" type="submit">Salvar produto</button><button class="outline-btn save" id="cancelProductEdit" type="button" style="display:none">Cancelar edição</button></form></div><div class="panel"><div class="panel-head"><div><h3>Lista de estoque</h3><p class="muted">Controle de quantidade e valor.</p></div><div class="search"><input id="busca" placeholder="Buscar no estoque..."></div></div><div class="table-wrap"><table><thead><tr><th>Foto</th><th>Produto</th><th>Categoria</th><th>Valor</th><th>Estoque</th><th>Status</th><th>Ações</th></tr></thead><tbody id="tbody"></tbody></table></div></div></section>
+      <section id="tab-pedidos" class="tab"><div id="ordersContent"></div></section>
+      <section id="tab-relatorios" class="tab"><div id="reportsContent"></div></section>
+      <section id="tab-empresa" class="tab"><div class="panel"><div class="panel-head"><div><h3>Cadastro de clientes</h3><p class="muted">Crie logins que poderão selecionar produtos e fazer pedidos.</p></div></div><form id="userForm" class="user-form"><input id="clienteNome" placeholder="Nome do cliente" required><input id="clienteUsuario" placeholder="Usuário de acesso" required><input id="clienteSenha" type="password" placeholder="Senha" required><button class="btn" type="submit">Cadastrar cliente</button></form><div id="userNotice" class="notice"></div></div><div class="panel"><h3>Clientes cadastrados</h3><div class="table-wrap" style="margin-top:16px"><table><thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Status</th><th>Ações</th></tr></thead><tbody id="usersBody"></tbody></table></div></div></section>
+      <div class="footer">© 2026 Empório Pampatto Brasil. Todos os direitos reservados.</div>
+    </main>
+  </div>
+</section>
+<script src="assets/js/app.js"></script>
+</body></html>
