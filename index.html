@@ -11,14 +11,14 @@
 <div class="bg"><span class="twinkle"></span><span class="twinkle two"></span></div>
 <section class="page" id="loginPage">
   <form class="login-card" id="loginForm">
-    <img src="assets/images/logo.jpg" class="logo" alt="Empório Pampatto Brasil" />
+    <img src="assets/images/login-logo.png" class="logo login-logo" alt="Empório Pampatto Brasil" />
     <h2>Bem-vindo de volta!</h2><p class="muted">Faça login para acessar o sistema</p>
     <label>Usuário</label><div class="field"><span class="field-icon">♙</span><input id="login" placeholder="Digite seu usuário" autocomplete="username"></div>
     <label>Senha</label><div class="field"><span class="field-icon">▣</span><input id="senha" type="password" placeholder="Digite sua senha" autocomplete="current-password"><button type="button" class="icon-btn" id="toggleSenha">◉</button></div>
     <div id="capsAlert" class="alert">Caps Lock ativado.</div><div id="errorAlert" class="alert">Usuário ou senha inválidos.</div>
     <div class="row"><label class="remember"><input type="checkbox" id="rememberMe"> Lembrar-me</label><a href="#" onclick="return false">Esqueceu a senha?</a></div>
     <button class="btn full" type="submit">ENTRAR</button>
-    <p class="muted" style="margin-top:24px">Acesso administrativo inicial: teste / teste</p>
+    <p class="muted" id="configStatus" style="margin-top:24px"></p>
   </form>
 </section>
 <section class="app" id="appPage">
@@ -47,10 +47,21 @@
       <section id="tab-estoque" class="tab"><div class="panel"><div class="panel-head"><div><h3 id="stockFormTitle">Cadastrar produto</h3><p class="muted">Cadastre imagem, estoque e valor de venda.</p></div><div class="tools"><button class="outline-btn" id="exportBtn">Exportar backup</button><button class="outline-btn" id="importBtn">Importar backup</button><input type="file" class="hidden-file" id="importFile" accept="application/json"></div></div><form id="stockForm" class="grid"><input type="hidden" id="produtoId"><input id="nome" placeholder="Nome interno do produto"><input id="fabricante" placeholder="Fornecedor / fabricante"><input id="quantidade" type="number" min="0" step="0.01" placeholder="Quantidade"><input id="valor" type="number" min="0" step="0.01" placeholder="Valor unitário (R$)"><select id="tipo"><option>Carnes Bovinas</option><option>Carnes Suínas</option><option>Carnes de Frango</option><option>Miúdos de Frango</option><option>Embutidos</option><option>Industrializados</option><option>Peixes</option></select><input id="validade" type="date"><input id="imagem" type="file" accept="image/*"><button class="btn save" type="submit">Salvar produto</button><button class="outline-btn save" id="cancelProductEdit" type="button" style="display:none">Cancelar edição</button></form></div><div class="panel"><div class="panel-head"><div><h3>Lista de estoque</h3><p class="muted">Controle de quantidade e valor.</p></div><div class="search"><input id="busca" placeholder="Buscar no estoque..."></div></div><div class="table-wrap"><table><thead><tr><th>Foto</th><th>Produto</th><th>Categoria</th><th>Valor</th><th>Estoque</th><th>Status</th><th>Ações</th></tr></thead><tbody id="tbody"></tbody></table></div></div></section>
       <section id="tab-pedidos" class="tab"><div id="ordersContent"></div></section>
       <section id="tab-relatorios" class="tab"><div id="reportsContent"></div></section>
-      <section id="tab-empresa" class="tab"><div class="panel"><div class="panel-head"><div><h3>Cadastro de clientes</h3><p class="muted">Crie logins que poderão selecionar produtos e fazer pedidos.</p></div></div><form id="userForm" class="user-form"><input id="clienteNome" placeholder="Nome do cliente" required><input id="clienteUsuario" placeholder="Usuário de acesso" required><input id="clienteSenha" type="password" placeholder="Senha" required><button class="btn" type="submit">Cadastrar cliente</button></form><div id="userNotice" class="notice"></div></div><div class="panel"><h3>Clientes cadastrados</h3><div class="table-wrap" style="margin-top:16px"><table><thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Status</th><th>Ações</th></tr></thead><tbody id="usersBody"></tbody></table></div></div></section>
+      <section id="tab-empresa" class="tab"><div class="panel"><div class="panel-head"><div><h3>Cadastro de clientes</h3><p class="muted">Crie logins que poderão selecionar produtos e fazer pedidos.</p></div></div><form id="userForm" class="user-form">
+<input id="clienteNome" placeholder="Nome do cliente" required>
+<input id="clienteUsuario" placeholder="Usuário de acesso" required>
+<select id="clientePerfil" required>
+  <option value="cliente">Cliente</option>
+  <option value="admin">Administrador</option>
+</select>
+<input id="clienteSenha" type="password" minlength="8" placeholder="Senha (mínimo 8 caracteres)" required>
+<button class="btn" type="submit">Cadastrar acesso</button>
+</form><div id="userNotice" class="notice"></div></div><div class="panel"><h3>Clientes cadastrados</h3><div class="table-wrap" style="margin-top:16px"><table><thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Status</th><th>Ações</th></tr></thead><tbody id="usersBody"></tbody></table></div></div></section>
       <div class="footer">© 2026 Empório Pampatto Brasil. Todos os direitos reservados.</div>
     </main>
   </div>
 </section>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/supabase-config.js"></script>
 <script src="assets/js/app.js"></script>
 </body></html>
