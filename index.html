@@ -24,7 +24,7 @@
 <section class="app" id="appPage">
   <div class="app-shell">
     <aside class="sidebar">
-      <img src="assets/images/logo.jpg" class="logo side-logo" alt="Empório Pampatto Brasil">
+      <img src="assets/images/login-logo.png" class="logo side-logo" alt="Empório Pampatto Brasil">
       <nav class="nav">
         <button class="active" data-tab="dashboard"><span class="nav-ico" aria-hidden="true">🏠</span>Dashboard</button>
         <button data-tab="produtos"><span class="nav-ico" aria-hidden="true">📦</span>Produtos</button>
@@ -37,18 +37,19 @@
       </nav>
     </aside>
     <main class="main">
-      <div class="topbar"><div class="top-user"><span class="nav-ico" aria-hidden="true">👤</span><div><strong id="currentUserName">Usuário</strong><br><span class="muted" id="currentUserRole"></span></div></div></div>
+      <div class="topbar"><div class="top-user"><span class="nav-ico" aria-hidden="true">👤</span><div class="top-user-text"><strong id="currentUserName">Usuário</strong><span id="currentUserRole">Perfil</span></div></div></div>
       <section id="tab-dashboard" class="tab active">
         <div class="metrics"><div class="metric admin-only"><span class="nav-ico" aria-hidden="true">💰</span><div><span class="muted">VENDAS DO MÊS</span><div class="big small" id="metricSales">R$ 0,00</div></div></div><div class="metric"><span class="nav-ico" aria-hidden="true">🧾</span><div><span class="muted">PEDIDOS</span><div class="big" id="metricOrders">0</div></div></div><div class="metric"><span class="nav-ico" aria-hidden="true">📦</span><div><span class="muted">PRODUTOS</span><div class="big" id="metricProducts">0</div></div></div><div class="metric admin-only"><span class="nav-ico" aria-hidden="true">⚠️</span><div><span class="muted">ESTOQUE BAIXO</span><div class="big" id="metricLow">0</div></div></div></div>
         <div class="panel" style="margin-top:18px"><div class="panel-head"><div><h3>Produtos</h3><p class="muted">Selecione os produtos disponíveis</p></div><div class="tools"><div class="search"><input id="buscaDash" placeholder="Buscar produto..."></div><button class="btn admin-only" data-new-product>＋ Novo Produto</button></div></div><div id="dashProducts"></div></div>
       </section>
       <section id="tab-produtos" class="tab"><div class="panel"><div class="panel-head"><div><h3>Produtos</h3><p class="muted">Catálogo de produtos</p></div><div class="tools"><div class="search"><input id="buscaProdutos" placeholder="Buscar produto..."></div><button class="btn admin-only" data-new-product>＋ Novo Produto</button></div></div><div id="produtosView"></div></div></section>
-      <section id="tab-carrinho" class="tab"><div class="panel"><div class="panel-head"><div><h3>Carrinho</h3><p class="muted">Confira os produtos e valores antes de fazer o pedido.</p></div><div class="tools"><button class="outline-btn" id="clearCartBtn">Limpar carrinho</button><button class="btn" id="finishCartBtn">Fazer pedido</button></div></div><div id="cartNotice"></div><div id="cartView"></div></div></section>
+      <section id="tab-carrinho" class="tab"><div class="panel"><div class="panel-head"><div><h3>Carrinho</h3><p class="muted">Confira os produtos e valores antes de fazer o pedido.</p></div><div class="tools"><button class="outline-btn danger-outline" id="clearCartBtn">Cancelar pedido</button><button class="btn" id="finishCartBtn">Finalizar pedido</button></div></div><div id="cartNotice"></div><div id="cartView"></div></div></section>
       <section id="tab-estoque" class="tab"><div class="panel"><div class="panel-head"><div><h3 id="stockFormTitle">Cadastrar produto</h3><p class="muted">Cadastre imagem, estoque e valor de venda.</p></div><div class="tools"><button class="outline-btn" id="exportBtn">Exportar backup</button><button class="outline-btn" id="importBtn">Importar backup</button><input type="file" class="hidden-file" id="importFile" accept="application/json"></div></div><form id="stockForm" class="grid"><input type="hidden" id="produtoId"><input id="nome" placeholder="Nome interno do produto"><input id="fabricante" placeholder="Fornecedor / fabricante"><input id="quantidade" type="number" min="0" step="0.01" placeholder="Quantidade"><input id="valor" type="number" min="0" step="0.01" placeholder="Valor unitário (R$)"><select id="tipo"><option>Carnes Bovinas</option><option>Carnes Suínas</option><option>Carnes de Frango</option><option>Miúdos de Frango</option><option>Embutidos</option><option>Industrializados</option><option>Peixes</option></select><input id="validade" type="date"><input id="imagem" type="file" accept="image/*"><button class="btn save" type="submit">Salvar produto</button><button class="outline-btn save" id="cancelProductEdit" type="button" style="display:none">Cancelar edição</button></form></div><div class="panel"><div class="panel-head"><div><h3>Lista de estoque</h3><p class="muted">Controle de quantidade e valor.</p></div><div class="search"><input id="busca" placeholder="Buscar no estoque..."></div></div><div class="table-wrap"><table><thead><tr><th>Foto</th><th>Produto</th><th>Categoria</th><th>Valor</th><th>Estoque</th><th>Status</th><th>Ações</th></tr></thead><tbody id="tbody"></tbody></table></div></div></section>
       <section id="tab-pedidos" class="tab"><div id="ordersContent"></div></section>
       <section id="tab-relatorios" class="tab"><div id="reportsContent"></div></section>
       <section id="tab-empresa" class="tab"><div class="panel"><div class="panel-head"><div><h3>Cadastro de clientes</h3><p class="muted">Crie logins que poderão selecionar produtos e fazer pedidos.</p></div></div><form id="userForm" class="user-form">
 <input id="clienteNome" placeholder="Nome do cliente" required>
+<input id="clienteCnpj" placeholder="CNPJ do cliente" maxlength="18" inputmode="numeric" autocomplete="off" required>
 <input id="clienteUsuario" placeholder="Usuário de acesso" required>
 <select id="clientePerfil" required>
   <option value="cliente">Cliente</option>
@@ -56,11 +57,22 @@
 </select>
 <input id="clienteSenha" type="password" minlength="8" placeholder="Senha (mínimo 8 caracteres)" required>
 <button class="btn" type="submit">Cadastrar acesso</button>
-</form><div id="userNotice" class="notice"></div></div><div class="panel"><h3>Clientes cadastrados</h3><div class="table-wrap" style="margin-top:16px"><table><thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Status</th><th>Ações</th></tr></thead><tbody id="usersBody"></tbody></table></div></div></section>
+</form><div id="userNotice" class="notice"></div></div><div class="panel"><h3>Clientes cadastrados</h3><div class="table-wrap" style="margin-top:16px"><table><thead><tr><th>Nome</th><th>CNPJ</th><th>Usuário</th><th>Perfil</th><th>Status</th><th>Ações</th></tr></thead><tbody id="usersBody"></tbody></table></div></div></section>
       <div class="footer">© 2026 Empório Pampatto Brasil. Todos os direitos reservados.</div>
     </main>
   </div>
 </section>
+
+<div class="modal-backdrop" id="orderSuccessModal" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="orderSuccessTitle">
+    <div class="modal-icon" aria-hidden="true">✓</div>
+    <h3 id="orderSuccessTitle">Pedido concluído!</h3>
+    <p>Seu pedido foi registrado com sucesso.</p>
+    <div class="order-number-box">Pedido nº <strong id="completedOrderNumber">—</strong></div>
+    <button class="btn full" type="button" id="closeOrderSuccessModal">Ver meus pedidos</button>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/js/supabase-config.js"></script>
 <script src="assets/js/app.js"></script>
