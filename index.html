@@ -6,6 +6,110 @@
 <title>Empório Pampatto Brasil | Gestão</title>
 
   <link rel="stylesheet" href="assets/css/styles.css">
+
+<style>
+/* Ajustes visuais: usuário logado e aba Clientes */
+.topbar .top-user{
+  display:flex!important;
+  align-items:center!important;
+  gap:12px!important;
+  min-width:250px!important;
+  padding:12px 18px!important;
+  background:#0b0b0b!important;
+  border:1px solid #8c6615!important;
+  border-radius:12px!important;
+}
+.topbar .top-user .nav-ico{
+  color:#d8a632!important;
+  font-size:24px!important;
+  flex:0 0 auto!important;
+}
+.topbar .top-user-text{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:flex-start!important;
+  justify-content:center!important;
+  gap:3px!important;
+  min-width:0!important;
+  line-height:1.15!important;
+}
+#currentUserName{
+  display:block!important;
+  width:100%!important;
+  color:#e2b84d!important;
+  font-size:16px!important;
+  font-weight:800!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  text-shadow:none!important;
+}
+#currentUserRole{
+  display:block!important;
+  width:100%!important;
+  color:#b88927!important;
+  font-size:12px!important;
+  font-weight:700!important;
+  letter-spacing:.08em!important;
+  text-transform:uppercase!important;
+  white-space:nowrap!important;
+}
+
+/* Título Clientes cadastrados */
+#tab-empresa > .panel:last-of-type > h3{
+  color:#b88927!important;
+  font-weight:800!important;
+}
+
+/* Tabela da aba Clientes */
+#tab-empresa .table-wrap{
+  background:#090909!important;
+  border:1px solid rgba(184,137,39,.45)!important;
+  border-radius:12px!important;
+  overflow:auto!important;
+}
+#tab-empresa .table-wrap table{
+  width:100%!important;
+  background:#090909!important;
+  color:#f2dfaa!important;
+  border-collapse:collapse!important;
+}
+#tab-empresa .table-wrap thead,
+#tab-empresa .table-wrap thead tr{
+  background:#171207!important;
+}
+#tab-empresa .table-wrap th{
+  background:#171207!important;
+  color:#d8a632!important;
+  border-bottom:1px solid rgba(216,166,50,.45)!important;
+}
+#tab-empresa .table-wrap tbody,
+#tab-empresa .table-wrap tbody tr,
+#tab-empresa .table-wrap td{
+  background:#090909!important;
+  color:#f4e5ba!important;
+}
+#tab-empresa .table-wrap tbody tr:nth-child(even),
+#tab-empresa .table-wrap tbody tr:nth-child(even) td{
+  background:#11100d!important;
+}
+#tab-empresa .table-wrap tbody tr:hover,
+#tab-empresa .table-wrap tbody tr:hover td{
+  background:#1b160b!important;
+}
+#tab-empresa .table-wrap td{
+  border-bottom:1px solid rgba(216,166,50,.16)!important;
+}
+#tab-empresa .table-wrap .muted{
+  color:#c7b98f!important;
+}
+
+@media(max-width:700px){
+  .topbar .top-user{min-width:210px!important;padding:10px 12px!important}
+  #currentUserName{font-size:14px!important}
+}
+</style>
+
 </head>
 <body>
 <div class="bg"><span class="twinkle"></span><span class="twinkle two"></span></div>
