@@ -134,7 +134,8 @@
         <button data-tab="produtos"><span class="nav-ico" aria-hidden="true">📦</span>Produtos</button>
         <button data-tab="carrinho" class="client-only"><span class="nav-ico" aria-hidden="true">🛒</span>Carrinho <span class="badge" id="cartBadge" style="display:none">0</span></button>
         <button data-tab="estoque" class="admin-only"><span class="nav-ico" aria-hidden="true">📋</span>Estoque</button>
-        <button data-tab="pedidos"><span class="nav-ico" aria-hidden="true">🧾</span><span id="ordersMenuLabel">Pedidos</span></button>
+        <button data-tab="pedidos" id="ordersNavButton"><span class="nav-ico" aria-hidden="true">🧾</span><span id="ordersMenuLabel">Pedidos</span><span class="attention-badge" id="ordersAlertBadge" style="display:none">!</span></button>
+        <button data-tab="lista-compras" id="marketListNavButton"><span class="nav-ico" aria-hidden="true">🛍️</span><span>Lista de Compras</span><span class="attention-badge" id="marketAlertBadge" style="display:none">!</span></button>
         <button data-tab="relatorios" class="admin-only"><span class="nav-ico" aria-hidden="true">📊</span>Relatórios</button>
         <button data-tab="empresa" class="admin-only"><span class="nav-ico" aria-hidden="true">👥</span>Clientes</button>
         <div class="nav-spacer"></div><button id="logoutBtn"><span class="nav-ico" aria-hidden="true">🚪</span>Sair</button>
@@ -150,6 +151,7 @@
       <section id="tab-carrinho" class="tab"><div class="panel"><div class="panel-head"><div><h3>Carrinho</h3><p class="muted">Confira os produtos e valores antes de fazer o pedido.</p></div><div class="tools"><button class="outline-btn danger-outline" id="clearCartBtn">Cancelar pedido</button><button class="btn" id="finishCartBtn">Finalizar pedido</button></div></div><div id="cartNotice"></div><div id="cartView"></div></div></section>
       <section id="tab-estoque" class="tab"><div class="panel"><div class="panel-head"><div><h3 id="stockFormTitle">Cadastrar produto</h3><p class="muted">Cadastre imagem, estoque e valor de venda.</p></div><div class="tools"><button class="outline-btn" id="exportBtn">Exportar backup</button><button class="outline-btn" id="importBtn">Importar backup</button><input type="file" class="hidden-file" id="importFile" accept="application/json"></div></div><form id="stockForm" class="grid"><input type="hidden" id="produtoId"><input id="nome" placeholder="Nome interno do produto"><input id="fabricante" placeholder="Fornecedor / fabricante"><input id="quantidade" type="number" min="0" step="0.01" placeholder="Quantidade"><input id="valor" type="number" min="0" step="0.01" placeholder="Valor unitário (R$)"><select id="tipo"><option>Carnes Bovinas</option><option>Carnes Suínas</option><option>Carnes de Frango</option><option>Miúdos de Frango</option><option>Embutidos</option><option>Industrializados</option><option>Peixes</option></select><input id="validade" type="date"><input id="imagem" type="file" accept="image/*"><button class="btn save" type="submit">Salvar produto</button><button class="outline-btn save" id="cancelProductEdit" type="button" style="display:none">Cancelar edição</button></form></div><div class="panel"><div class="panel-head"><div><h3>Lista de estoque</h3><p class="muted">Controle de quantidade e valor.</p></div><div class="search"><input id="busca" placeholder="Buscar no estoque..."></div></div><div class="table-wrap"><table><thead><tr><th>Foto</th><th>Produto</th><th>Categoria</th><th>Valor</th><th>Estoque</th><th>Status</th><th>Ações</th></tr></thead><tbody id="tbody"></tbody></table></div></div></section>
       <section id="tab-pedidos" class="tab"><div id="ordersContent"></div></section>
+      <section id="tab-lista-compras" class="tab"><div id="marketListContent"></div></section>
       <section id="tab-relatorios" class="tab"><div id="reportsContent"></div></section>
       <section id="tab-empresa" class="tab"><div class="panel"><div class="panel-head"><div><h3>Cadastro de clientes</h3><p class="muted">Crie logins que poderão selecionar produtos e fazer pedidos.</p></div></div><form id="userForm" class="user-form">
 <input id="clienteNome" placeholder="Nome do cliente" required>
@@ -174,6 +176,17 @@
     <p>Seu pedido foi registrado com sucesso.</p>
     <div class="order-number-box">Pedido nº <strong id="completedOrderNumber">—</strong></div>
     <button class="btn full" type="button" id="closeOrderSuccessModal">Ver meus pedidos</button>
+  </div>
+</div>
+
+
+<div class="modal-backdrop" id="marketSuccessModal" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="marketSuccessTitle">
+    <div class="modal-icon" aria-hidden="true">✓</div>
+    <h3 id="marketSuccessTitle">Lista enviada!</h3>
+    <p>Sua lista de compras foi registrada com sucesso.</p>
+    <div class="order-number-box">Pedido nº <strong id="completedMarketNumber">—</strong></div>
+    <button class="btn full" type="button" id="closeMarketSuccessModal">Acompanhar pedido</button>
   </div>
 </div>
 
