@@ -13,8 +13,8 @@
   <form class="login-card" id="loginForm">
     <img src="assets/images/login-logo.png" class="logo login-logo" alt="Empório Pampatto Brasil" />
     <h2>Bem-vindo de volta!</h2><p class="muted">Faça login para acessar o sistema</p>
-    <label>Usuário</label><div class="field"><span class="field-icon">♙</span><input id="login" placeholder="Digite seu usuário" autocomplete="username"></div>
-    <label>Senha</label><div class="field"><span class="field-icon">▣</span><input id="senha" type="password" placeholder="Digite sua senha" autocomplete="current-password"><button type="button" class="icon-btn" id="toggleSenha">◉</button></div>
+    <label>Usuário</label><div class="field"><span class="field-icon" aria-hidden="true">👤</span><input id="login" placeholder="Digite seu usuário" autocomplete="username"></div>
+    <label>Senha</label><div class="field"><span class="field-icon" aria-hidden="true">🔒</span><input id="senha" type="password" placeholder="Digite sua senha" autocomplete="current-password"><button type="button" class="icon-btn" id="toggleSenha">◉</button></div>
     <div id="capsAlert" class="alert">Caps Lock ativado.</div><div id="errorAlert" class="alert">Usuário ou senha inválidos.</div>
     <div class="row"><label class="remember"><input type="checkbox" id="rememberMe"> Lembrar-me</label><a href="#" onclick="return false">Esqueceu a senha?</a></div>
     <button class="btn full" type="submit">ENTRAR</button>
@@ -26,20 +26,20 @@
     <aside class="sidebar">
       <img src="assets/images/logo.jpg" class="logo side-logo" alt="Empório Pampatto Brasil">
       <nav class="nav">
-        <button class="active" data-tab="dashboard"><span class="nav-ico">⌂</span>Dashboard</button>
-        <button data-tab="produtos"><span class="nav-ico">▧</span>Produtos</button>
-        <button data-tab="carrinho" class="client-only"><span class="nav-ico">🛒</span>Carrinho <span class="badge" id="cartBadge" style="display:none">0</span></button>
-        <button data-tab="estoque" class="admin-only"><span class="nav-ico">▦</span>Estoque</button>
-        <button data-tab="pedidos"><span class="nav-ico">☷</span><span id="ordersMenuLabel">Pedidos</span></button>
-        <button data-tab="relatorios" class="admin-only"><span class="nav-ico">▤</span>Relatórios</button>
-        <button data-tab="empresa" class="admin-only"><span class="nav-ico">⚙</span>Clientes</button>
-        <div class="nav-spacer"></div><button id="logoutBtn"><span class="nav-ico">⇥</span>Sair</button>
+        <button class="active" data-tab="dashboard"><span class="nav-ico" aria-hidden="true">🏠</span>Dashboard</button>
+        <button data-tab="produtos"><span class="nav-ico" aria-hidden="true">📦</span>Produtos</button>
+        <button data-tab="carrinho" class="client-only"><span class="nav-ico" aria-hidden="true">🛒</span>Carrinho <span class="badge" id="cartBadge" style="display:none">0</span></button>
+        <button data-tab="estoque" class="admin-only"><span class="nav-ico" aria-hidden="true">📋</span>Estoque</button>
+        <button data-tab="pedidos"><span class="nav-ico" aria-hidden="true">🧾</span><span id="ordersMenuLabel">Pedidos</span></button>
+        <button data-tab="relatorios" class="admin-only"><span class="nav-ico" aria-hidden="true">📊</span>Relatórios</button>
+        <button data-tab="empresa" class="admin-only"><span class="nav-ico" aria-hidden="true">👥</span>Clientes</button>
+        <div class="nav-spacer"></div><button id="logoutBtn"><span class="nav-ico" aria-hidden="true">🚪</span>Sair</button>
       </nav>
     </aside>
     <main class="main">
-      <div class="topbar"><div class="top-user"><span class="nav-ico">◎</span><div><strong id="currentUserName">Usuário</strong><br><span class="muted" id="currentUserRole"></span></div></div></div>
+      <div class="topbar"><div class="top-user"><span class="nav-ico" aria-hidden="true">👤</span><div><strong id="currentUserName">Usuário</strong><br><span class="muted" id="currentUserRole"></span></div></div></div>
       <section id="tab-dashboard" class="tab active">
-        <div class="metrics"><div class="metric admin-only"><span class="nav-ico">▣</span><div><span class="muted">VENDAS DO MÊS</span><div class="big small" id="metricSales">R$ 0,00</div></div></div><div class="metric"><span class="nav-ico">☷</span><div><span class="muted">PEDIDOS</span><div class="big" id="metricOrders">0</div></div></div><div class="metric"><span class="nav-ico">▦</span><div><span class="muted">PRODUTOS</span><div class="big" id="metricProducts">0</div></div></div><div class="metric admin-only"><span class="nav-ico">⊗</span><div><span class="muted">ESTOQUE BAIXO</span><div class="big" id="metricLow">0</div></div></div></div>
+        <div class="metrics"><div class="metric admin-only"><span class="nav-ico" aria-hidden="true">💰</span><div><span class="muted">VENDAS DO MÊS</span><div class="big small" id="metricSales">R$ 0,00</div></div></div><div class="metric"><span class="nav-ico" aria-hidden="true">🧾</span><div><span class="muted">PEDIDOS</span><div class="big" id="metricOrders">0</div></div></div><div class="metric"><span class="nav-ico" aria-hidden="true">📦</span><div><span class="muted">PRODUTOS</span><div class="big" id="metricProducts">0</div></div></div><div class="metric admin-only"><span class="nav-ico" aria-hidden="true">⚠️</span><div><span class="muted">ESTOQUE BAIXO</span><div class="big" id="metricLow">0</div></div></div></div>
         <div class="panel" style="margin-top:18px"><div class="panel-head"><div><h3>Produtos</h3><p class="muted">Selecione os produtos disponíveis</p></div><div class="tools"><div class="search"><input id="buscaDash" placeholder="Buscar produto..."></div><button class="btn admin-only" data-new-product>＋ Novo Produto</button></div></div><div id="dashProducts"></div></div>
       </section>
       <section id="tab-produtos" class="tab"><div class="panel"><div class="panel-head"><div><h3>Produtos</h3><p class="muted">Catálogo de produtos</p></div><div class="tools"><div class="search"><input id="buscaProdutos" placeholder="Buscar produto..."></div><button class="btn admin-only" data-new-product>＋ Novo Produto</button></div></div><div id="produtosView"></div></div></section>
