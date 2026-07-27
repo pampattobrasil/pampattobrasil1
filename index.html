@@ -6,6 +6,7 @@
 <title>Empório Pampatto Brasil | Gestão</title>
 
   <link rel="stylesheet" href="assets/css/styles.css">
+  <link rel="stylesheet" href="assets/css/lista-compras.css">
 </head>
 <body>
 <div class="bg"><span class="twinkle"></span><span class="twinkle two"></span></div>
@@ -31,6 +32,8 @@
         <button data-tab="carrinho" class="client-only"><span class="nav-ico" aria-hidden="true">🛒</span>Carrinho <span class="badge" id="cartBadge" style="display:none">0</span></button>
         <button data-tab="estoque" class="admin-only"><span class="nav-ico" aria-hidden="true">📋</span>Estoque</button>
         <button data-tab="pedidos"><span class="nav-ico" aria-hidden="true">🧾</span><span id="ordersMenuLabel">Pedidos</span></button>
+        <button data-tab="lista-compras"><span class="nav-ico" aria-hidden="true">🛍️</span>Lista de compras</button>
+        <button data-tab="acompanhar-lista" id="acompanharListaMenu" style="display:none"><span class="nav-ico" aria-hidden="true">📍</span>Acompanhar lista</button>
         <button data-tab="relatorios" class="admin-only"><span class="nav-ico" aria-hidden="true">📊</span>Relatórios</button>
         <button data-tab="empresa" class="admin-only"><span class="nav-ico" aria-hidden="true">👥</span>Clientes</button>
         <div class="nav-spacer"></div><button id="logoutBtn"><span class="nav-ico" aria-hidden="true">🚪</span>Sair</button>
@@ -46,6 +49,29 @@
       <section id="tab-carrinho" class="tab"><div class="panel"><div class="panel-head"><div><h3>Carrinho</h3><p class="muted">Confira os produtos e valores antes de fazer o pedido.</p></div><div class="tools"><button class="outline-btn danger-outline" id="clearCartBtn">Cancelar pedido</button><button class="btn" id="finishCartBtn">Finalizar pedido</button></div></div><div id="cartNotice"></div><div id="cartView"></div></div></section>
       <section id="tab-estoque" class="tab"><div class="panel"><div class="panel-head"><div><h3 id="stockFormTitle">Cadastrar produto</h3><p class="muted">Cadastre imagem, estoque e valor de venda.</p></div><div class="tools"><button class="outline-btn" id="exportBtn">Exportar backup</button><button class="outline-btn" id="importBtn">Importar backup</button><input type="file" class="hidden-file" id="importFile" accept="application/json"></div></div><form id="stockForm" class="grid"><input type="hidden" id="produtoId"><input id="nome" placeholder="Nome interno do produto"><input id="fabricante" placeholder="Fornecedor / fabricante"><input id="quantidade" type="number" min="0" step="0.01" placeholder="Quantidade"><input id="valor" type="number" min="0" step="0.01" placeholder="Valor unitário (R$)"><select id="tipo"><option>Carnes Bovinas</option><option>Carnes Suínas</option><option>Carnes de Frango</option><option>Miúdos de Frango</option><option>Embutidos</option><option>Industrializados</option><option>Peixes</option></select><input id="validade" type="date"><input id="imagem" type="file" accept="image/*"><button class="btn save" type="submit">Salvar produto</button><button class="outline-btn save" id="cancelProductEdit" type="button" style="display:none">Cancelar edição</button></form></div><div class="panel"><div class="panel-head"><div><h3>Lista de estoque</h3><p class="muted">Controle de quantidade e valor.</p></div><div class="search"><input id="busca" placeholder="Buscar no estoque..."></div></div><div class="table-wrap"><table><thead><tr><th>Foto</th><th>Produto</th><th>Categoria</th><th>Valor</th><th>Estoque</th><th>Status</th><th>Ações</th></tr></thead><tbody id="tbody"></tbody></table></div></div></section>
       <section id="tab-pedidos" class="tab"><div id="ordersContent"></div></section>
+      <section id="tab-lista-compras" class="tab">
+        <div class="panel">
+          <div class="panel-head">
+            <div><h3>Lista de compras</h3><p class="muted">Digite os produtos e selecione a quantidade de 1 a 10.</p></div>
+            <div class="tools"><button class="outline-btn" type="button" id="adicionarItemLista">＋ Adicionar item</button></div>
+          </div>
+          <form id="listaComprasForm">
+            <div id="listaComprasItens" class="shopping-list-editor"></div>
+            <div id="listaComprasNotice" class="notice"></div>
+            <div class="shopping-list-actions">
+              <button class="outline-btn danger-outline" type="button" id="cancelarListaCompras">Cancelar lista</button>
+              <button class="btn" type="submit">Salvar lista</button>
+            </div>
+          </form>
+        </div>
+      </section>
+      <section id="tab-acompanhar-lista" class="tab">
+        <div class="panel">
+          <div class="panel-head"><div><h3>Acompanhar lista</h3><p class="muted">Consulte o andamento das listas de mercado.</p></div><button class="outline-btn" type="button" id="atualizarListas">Atualizar</button></div>
+          <div id="acompanharListaNotice" class="notice"></div>
+          <div id="acompanharListaConteudo"></div>
+        </div>
+      </section>
       <section id="tab-relatorios" class="tab"><div id="reportsContent"></div></section>
       <section id="tab-empresa" class="tab"><div class="panel"><div class="panel-head"><div><h3>Cadastro de clientes</h3><p class="muted">Crie logins que poderão selecionar produtos e fazer pedidos.</p></div></div><form id="userForm" class="user-form">
 <input id="clienteNome" placeholder="Nome do cliente" required>
@@ -76,4 +102,5 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/js/supabase-config.js"></script>
 <script src="assets/js/app.js"></script>
+<script src="assets/js/lista-compras.js"></script>
 </body></html>
