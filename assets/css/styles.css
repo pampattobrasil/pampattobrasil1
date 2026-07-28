@@ -59,3 +59,16 @@ body{font-family:Arial;padding:28px;color:#111}h1{margin-bottom:4px}table{width:
 .order-step span{position:relative;z-index:1;display:grid;place-items:center;width:30px;height:30px;margin:0 auto 6px;border-radius:50%;background:#27231c;border:1px solid #5d5138;color:#bbb}
 .order-step.done{color:#f7c85d;font-weight:800}.order-step.done span{background:#d69f2d;color:#0b0904;border-color:#f7c85d}.order-step.done:before{background:#d69f2d}
 @media(max-width:700px){.order-track{grid-template-columns:1fr 1fr}.order-step:before{display:none}}
+.order-update-badge{
+  margin-left:8px;
+  background:#f2c94c!important;
+  color:#111!important;
+  min-width:24px!important;
+  height:24px!important;
+  border-radius:50%!important;
+  place-items:center!important;
+  font-size:14px!important;
+  box-shadow:0 0 12px rgba(242,201,76,.75);
+}
+#orderSuccessModal.open{display:grid!important}
+
