@@ -1,70 +1,104 @@
-/*
-=====================================================
- PAMPATTO BRASIL - APP JS
- Controle de menus, abas e inicialização
-=====================================================
-*/
-
-
-(function () {
+(function(){
 
 "use strict";
 
 
 /*
-=====================================================
- ABRIR MENUS
-=====================================================
+ LOGIN
 */
 
-window.openTab = function(tabName){
-
-    console.log("Abrindo aba:", tabName);
+window.fazerLogin = function(){
 
 
-    // Esconde todas as abas
-    document.querySelectorAll(".tab").forEach(function(tab){
-
-        tab.classList.remove("active");
-
-    });
+    let usuario = document.getElementById("usuario");
+    let senha = document.getElementById("senha");
 
 
+    if(!usuario || !senha){
 
-    // Mostra a aba selecionada
-    let tela = document.getElementById("tab-" + tabName);
-
-
-    if(tela){
-
-        tela.classList.add("active");
-
-    }
-    else{
-
-        console.warn(
-            "Aba não encontrada:",
-            "tab-" + tabName
+        console.error(
+            "Campos de login não encontrados"
         );
 
+        return;
+
     }
 
 
-
-    // Atualiza botão ativo
-
-    document.querySelectorAll("[data-tab]").forEach(function(btn){
-
-        btn.classList.remove("active");
+    let user = usuario.value.trim();
+    let pass = senha.value.trim();
 
 
-        if(btn.dataset.tab === tabName){
 
-            btn.classList.add("active");
+    console.log(
+        "Tentativa login:",
+        user
+    );
+
+
+
+    // usuário padrão de teste
+
+    if(
+        user === "teste" &&
+        pass === "teste"
+    ){
+
+
+        console.log(
+            "Login autorizado"
+        );
+
+
+        let login = document.getElementById("login");
+
+
+        if(login){
+
+            login.style.display="none";
 
         }
 
-    });
+
+
+        let sistema = document.getElementById("app");
+
+
+        if(sistema){
+
+            sistema.style.display="block";
+
+        }
+
+
+
+        if(typeof openTab === "function"){
+
+            openTab("dashboard");
+
+        }
+
+
+        if(typeof renderAll === "function"){
+
+            renderAll();
+
+        }
+
+
+        return true;
+
+
+    }
+
+
+
+    alert(
+        "Usuário ou senha inválidos"
+    );
+
+
+    return false;
 
 
 };
@@ -72,129 +106,92 @@ window.openTab = function(tabName){
 
 
 /*
-=====================================================
- INICIALIZA OS MENUS
-=====================================================
+ ABAS
+*/
+
+
+window.openTab=function(nome){
+
+
+    document.querySelectorAll(".tab")
+    .forEach(function(t){
+
+        t.classList.remove("active");
+
+    });
+
+
+
+    let aba=document.getElementById(
+        "tab-"+nome
+    );
+
+
+    if(aba){
+
+        aba.classList.add("active");
+
+    }
+
+
+
+};
+
+
+
+/*
+ MENU
 */
 
 function iniciarMenus(){
 
 
-    let botoes = document.querySelectorAll("[data-tab]");
+document.querySelectorAll("[data-tab]")
+.forEach(function(btn){
 
 
-    console.log(
-        "Menus encontrados:",
-        botoes.length
-    );
+    btn.onclick=function(){
 
 
-    botoes.forEach(function(botao){
+        openTab(
+            this.dataset.tab
+        );
 
 
-        botao.onclick = function(){
+    };
 
 
-            let aba = this.getAttribute("data-tab");
-
-
-            openTab(aba);
-
-
-        };
-
-
-    });
+});
 
 
 }
 
 
 
-/*
-=====================================================
- RENDERIZAÇÃO GERAL
-=====================================================
-*/
 
-window.renderAll = function(){
+window.renderAll=function(){
 
-
-    console.log(
-        "Executando renderAll"
-    );
-
-
-    // Dashboard
-
-    if(typeof renderDashboard === "function"){
-
-        renderDashboard();
-
-    }
-
-
-
-    // Produtos
-
-    if(typeof renderProdutos === "function"){
-
-        renderProdutos();
-
-    }
-
-
-
-    // Estoque
-
-    if(typeof renderEstoque === "function"){
-
-        renderEstoque();
-
-    }
-
-
-
-    // Pedidos
-
-    if(typeof renderPedidos === "function"){
-
-        renderPedidos();
-
-    }
-
+console.log(
+"Renderização iniciada"
+);
 
 
 };
 
 
 
-/*
-=====================================================
- INICIO DO SISTEMA
-=====================================================
-*/
-
-
 document.addEventListener(
 "DOMContentLoaded",
 function(){
 
+iniciarMenus();
 
-    console.log(
-        "Pampatto iniciado"
-    );
-
-
-    iniciarMenus();
-
-
-    renderAll();
-
+console.log(
+"Sistema carregado"
+);
 
 
 });
-
 
 
 })();
