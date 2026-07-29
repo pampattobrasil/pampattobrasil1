@@ -178,7 +178,129 @@ function applyPermissions(){document.querySelectorAll('.admin-only').forEach(el=
 function renderAll(){if(!currentUser)return;applyPermissions();renderProductArea('dashProducts');renderProductArea('produtosView');if(isAdmin()){renderTabela();renderUsers()}renderCarrinho();renderPedidos();if(isAdmin())renderRelatorios();renderMetrics()}
 function openTab(tab){if((tab==='estoque'||tab==='empresa'||tab==='relatorios')&&!isAdmin())return;document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));$('tab-'+tab)?.classList.add('active');document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));document.querySelector(`[data-tab="${tab}"]`)?.classList.add('active');if(tab==='pedidos')renderPedidos();if(tab==='relatorios')renderRelatorios()}
 document.querySelectorAll('.nav button[data-tab]').forEach(btn=>btn.onclick=()=>openTab(btn.dataset.tab));document.querySelectorAll('[data-new-product]').forEach(b=>b.onclick=()=>openTab('estoque'));
-$('loginForm').onsubmit=e=>{e.preventDefault();const loginDigitado=$('login').value.trim().toLowerCase();const user=state.usuarios.find(u=>String(u.usuario||'').trim().toLowerCase()===loginDigitado&&String(u.senha||'')===$('senha').value&&u.ativo!==false);if(!user){$('errorAlert').style.display='block';return}currentUser=user;$('errorAlert').style.display='none';$('loginPage').style.display='none';$('appPage').style.display='block';openTab('dashboard');renderAll()};
+$('loginForm').onsubmit=e=>{
+
+e.preventDefault();
+
+
+try{
+
+
+const loginDigitado = $('login').value.trim().toLowerCase();
+
+const senhaDigitada = $('senha').value;
+
+
+
+const user = state.usuarios.find(u =>
+    String(u.usuario || '').trim().toLowerCase() === loginDigitado &&
+    String(u.senha || '') === senhaDigitada &&
+    u.ativo !== false
+);
+
+
+
+if(!user){
+
+    const erro = $('errorAlert');
+
+    if(erro){
+        erro.style.display='block';
+    }
+
+    return false;
+
+}
+
+
+
+currentUser = user;
+
+
+
+const erro = $('errorAlert');
+
+if(erro){
+    erro.style.display='none';
+}
+
+
+
+const loginPage = $('loginPage');
+
+const appPage = $('appPage');
+
+
+
+if(loginPage){
+
+    loginPage.style.display='none';
+
+}
+
+
+
+if(appPage){
+
+    appPage.style.display='block';
+
+}
+
+
+
+// Atualiza usuário no topo
+
+if($('currentUserName')){
+
+    $('currentUserName').textContent = user.nome || user.usuario;
+
+}
+
+
+
+if($('currentUserRole')){
+
+    $('currentUserRole').textContent =
+    user.perfil === 'admin'
+    ? 'Administrador'
+    : 'Cliente';
+
+}
+
+
+
+openTab('dashboard');
+
+
+
+if(typeof renderAll === 'function'){
+
+    renderAll();
+
+}
+
+
+
+}
+
+catch(err){
+
+console.error(
+"Erro no login:",
+err
+);
+
+alert(
+"Erro ao acessar o sistema. Consulte o console."
+);
+
+}
+
+
+
+return false;
+
+};
 $('toggleSenha').onclick=()=>{$('senha').type=$('senha').type==='password'?'text':'password'};$('senha').addEventListener('keyup',e=>{$('capsAlert').style.display=e.getModifierState('CapsLock')?'block':'none'});$('logoutBtn').onclick=()=>{currentUser=null;$('appPage').style.display='none';$('loginPage').style.display='flex';$('senha').value=''};
 window.ajustarEstoque=id=>{const p=state.produtos.find(x=>sameId(x.id,id)),n=prompt('Informe a nova quantidade:',qtd(p));if(n===null)return;const v=Number(String(n).replace(',','.'));if(isNaN(v)||v<0)return alert('Quantidade inválida.');p.quantidade=v;save();renderAll()};
 window.editProduto=id=>{const p=state.produtos.find(x=>sameId(x.id,id));$('produtoId').value=p.id;$('nome').value=p.nome;$('fabricante').value=p.fabricante;$('quantidade').value=qtd(p);$('valor').value=Number(p.valor||0).toFixed(2);$('tipo').value=p.tipo;$('validade').value=p.validade||'';$('stockFormTitle').textContent='Editar produto';$('cancelProductEdit').style.display='block';openTab('estoque')};
