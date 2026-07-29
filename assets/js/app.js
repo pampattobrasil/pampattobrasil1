@@ -1,190 +1,200 @@
-// CORREÇÃO LOGIN / MODAL PEDIDO - v20260728.21
+/*
+=====================================================
+ PAMPATTO BRASIL - APP JS
+ Controle de menus, abas e inicialização
+=====================================================
+*/
 
-(function corrigirLoginPampatto(){
 
-    const loginForm = document.getElementById('loginForm');
+(function () {
 
-    if(!loginForm) return;
+"use strict";
 
-    const modal = document.getElementById('orderSuccessModal');
 
-    if(modal){
-        modal.classList.remove('open');
-        modal.style.display = 'none';
+/*
+=====================================================
+ ABRIR MENUS
+=====================================================
+*/
+
+window.openTab = function(tabName){
+
+    console.log("Abrindo aba:", tabName);
+
+
+    // Esconde todas as abas
+    document.querySelectorAll(".tab").forEach(function(tab){
+
+        tab.classList.remove("active");
+
+    });
+
+
+
+    // Mostra a aba selecionada
+    let tela = document.getElementById("tab-" + tabName);
+
+
+    if(tela){
+
+        tela.classList.add("active");
+
     }
+    else{
 
-    loginForm.onsubmit = function(e){
-
-        e.preventDefault();
-
-        const usuario = (
-            document.getElementById('login')?.value || ''
-        ).trim().toLowerCase();
-
-        const senha = 
-            document.getElementById('senha')?.value || '';
-
-
-        let usuarios = [];
-
-        try {
-
-            const state = JSON.parse(
-                localStorage.getItem('pampattoStateV4') || '{}'
-            );
-
-            usuarios = state.usuarios || [];
-
-        } catch(err){}
-
-
-
-        let user = usuarios.find(u =>
-
-            String(u.usuario || '').toLowerCase() === usuario &&
-
-            String(u.senha || '') === senha &&
-
-            u.ativo !== false
-
+        console.warn(
+            "Aba não encontrada:",
+            "tab-" + tabName
         );
 
+    }
 
 
-        // LOGIN DE TESTE
 
-        if(!user && usuario === 'teste' && senha === 'teste'){
+    // Atualiza botão ativo
 
-            user = {
+    document.querySelectorAll("[data-tab]").forEach(function(btn){
 
-                id:'admin',
+        btn.classList.remove("active");
 
-                nome:'Administrador',
 
-                usuario:'teste',
+        if(btn.dataset.tab === tabName){
 
-                senha:'teste',
-
-                perfil:'admin',
-
-                ativo:true
-
-            };
+            btn.classList.add("active");
 
         }
 
+    });
 
 
-        if(!user){
+};
 
-            const erro = document.getElementById('errorAlert');
 
-            if(erro){
 
-                erro.style.display='block';
+/*
+=====================================================
+ INICIALIZA OS MENUS
+=====================================================
+*/
 
-                erro.textContent='Usuário ou senha inválidos.';
+function iniciarMenus(){
 
-            }
 
-            return;
+    let botoes = document.querySelectorAll("[data-tab]");
 
-        }
 
+    console.log(
+        "Menus encontrados:",
+        botoes.length
+    );
 
 
-        window.currentUser = user;
+    botoes.forEach(function(botao){
 
 
+        botao.onclick = function(){
 
-        const loginPage =
-            document.getElementById('loginPage');
 
-        const appPage =
-            document.getElementById('appPage');
+            let aba = this.getAttribute("data-tab");
 
 
+            openTab(aba);
 
-        if(loginPage){
 
-            loginPage.style.display='none';
+        };
 
-        }
 
+    });
 
 
-        if(appPage){
+}
 
-            appPage.style.display='block';
 
-        }
 
+/*
+=====================================================
+ RENDERIZAÇÃO GERAL
+=====================================================
+*/
 
+window.renderAll = function(){
 
-        if(typeof openTab === 'function'){
 
-            openTab('dashboard');
+    console.log(
+        "Executando renderAll"
+    );
 
-        }
 
+    // Dashboard
 
+    if(typeof renderDashboard === "function"){
 
-        if(typeof renderAll === 'function'){
-
-            renderAll();
-
-        }
-
-    };
-
-
-})();
-
-
-
-// GARANTE QUE O MODAL NÃO APAREÇA NO LOGIN
-
-document.addEventListener('DOMContentLoaded',()=>{
-
-
-    const modal =
-        document.getElementById('orderSuccessModal');
-
-
-    if(modal){
-
-
-        modal.style.display='none';
-
-
-
-        const observer =
-            new MutationObserver(()=>{
-
-
-                if(!modal.classList.contains('open')){
-
-
-                    modal.style.display='none';
-
-
-                }
-
-
-            });
-
-
-
-        observer.observe(modal,{
-
-            attributes:true,
-
-            attributeFilter:['class']
-
-        });
-
+        renderDashboard();
 
     }
+
+
+
+    // Produtos
+
+    if(typeof renderProdutos === "function"){
+
+        renderProdutos();
+
+    }
+
+
+
+    // Estoque
+
+    if(typeof renderEstoque === "function"){
+
+        renderEstoque();
+
+    }
+
+
+
+    // Pedidos
+
+    if(typeof renderPedidos === "function"){
+
+        renderPedidos();
+
+    }
+
+
+
+};
+
+
+
+/*
+=====================================================
+ INICIO DO SISTEMA
+=====================================================
+*/
+
+
+document.addEventListener(
+"DOMContentLoaded",
+function(){
+
+
+    console.log(
+        "Pampatto iniciado"
+    );
+
+
+    iniciarMenus();
+
+
+    renderAll();
+
 
 
 });
+
+
+
+})();
