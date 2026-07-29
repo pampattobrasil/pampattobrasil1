@@ -1,6 +1,12 @@
 (() => {
   'use strict';
 
+  if (window.__PAMPATTO_LISTA_COMPRAS_CARREGADO__) {
+    console.warn('lista-compras.js já foi carregado. A segunda execução foi ignorada.');
+    return;
+  }
+  window.__PAMPATTO_LISTA_COMPRAS_CARREGADO__ = true;
+
   const STATUS = {
     pedido_realizado: 'Pedido realizado',
     em_separacao: 'Em separação',
