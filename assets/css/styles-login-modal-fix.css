@@ -1,0 +1,45 @@
+
+/* CORREÇÃO LOGIN / MODAL PEDIDO - v20260728.21 */
+
+/* Garante que o modal de pedido não apareça na tela inicial */
+#orderSuccessModal {
+    display: none !important;
+    visibility: hidden;
+    opacity: 0;
+}
+
+#orderSuccessModal.open {
+    display: grid !important;
+    visibility: visible;
+    opacity: 1;
+}
+
+/* evita elementos do app vazarem antes do login */
+#appPage {
+    display: none;
+}
+
+/* correção do botão entrar */
+#loginForm button[type="submit"] {
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+/* garante que alertas não bloqueiem clique */
+.alert {
+    pointer-events: none;
+}
+
+/* badge de pedidos */
+.order-update-badge {
+    display:none;
+    margin-left:8px;
+    background:#f2c94c;
+    color:#111;
+    border-radius:50%;
+    width:24px;
+    height:24px;
+    align-items:center;
+    justify-content:center;
+    font-weight:900;
+}
