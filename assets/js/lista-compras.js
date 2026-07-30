@@ -22,7 +22,7 @@ async function finish(){
  const originalText=btn?.textContent||'Finalizar pedido';
  if(btn){btn.disabled=true;btn.textContent='SALVANDO...'}
  try{
-   const {data,error}=await client.rpc('pampatto_finalizar_pedido_v2',{
+   const {data,error}=await client.rpc('pampatto_finalizar_pedido_v3',{
      p_cliente:String(u.id||u.usuario||''),
      p_cliente_nome:String(u.nome||u.usuario||'Cliente')
    });
@@ -39,7 +39,7 @@ async function finish(){
    setTimeout(()=>document.querySelector('#ordersContent .order-card')?.scrollIntoView({behavior:'smooth',block:'start'}),150);
  }catch(err){
    console.error('Erro ao finalizar pedido:',err);
-   const detalhe=err?.details||err?.hint||err?.message||String(err);
+   const detalhe=[err?.message,err?.details,err?.hint].filter(Boolean).join(' | ')||String(err);
    notice(`Não foi possível salvar o pedido: ${detalhe}`,true);
    alert(`Não foi possível finalizar o pedido.\n\n${detalhe}`);
  }finally{
