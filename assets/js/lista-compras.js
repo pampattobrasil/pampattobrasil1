@@ -17,34 +17,50 @@ async function finish(){
  const u=user();
  if(!u)return notice('Faça login novamente para finalizar o pedido.',true);
  if(!state.cart.length)return notice('Inclua ao menos um produto.',true);
+ const client=db();
  const btn=$('finishCartBtn');
  const originalText=btn?.textContent||'Finalizar pedido';
  if(btn){btn.disabled=true;btn.textContent='SALVANDO...'}
+ let createdOrderId=null;
  try{
-   const {data,error}=await db().rpc('pampatto_finalizar_pedido',{
-     p_cliente_identificador:String(u.id),
-     p_cliente_nome:String(u.nome||u.usuario||'Cliente')
-   });
-   if(error)throw error;
-   const result=Array.isArray(data)?data[0]:data;
-   const numero=result?.numero_pedido||result?.pedido_numero||result?.numero||'—';
-   const status=result?.status||'pedido_realizado';
-
-   await loadCart();
+   const total=state.cart.reduce((sum,item)=>sum+Number(item.subtotal ?? Number(item.quantidade||0)*Number(item.valor_unitario||0)),0);
+   if(total<=0)throw new Error('O total do carrinho é inválido.');
+   const stamp=new Date();
+   const numero=`${stamp.getFullYear()}${String(stamp.getMonth()+1).padStart(2,'0')}${String(stamp.getDate()).padStart(2,'0')}-${String(Date.now()).slice(-6)}`;
+   const orderPayload={
+     numero_pedido:numero,
+     cliente_identificador:u.id,
+     cliente_nome:String(u.nome||u.usuario||'Cliente'),
+     status:'pedido_realizado',
+     valor_total:total
+   };
+   const {data:order,error:orderError}=await client.from('catalogo_pedidos').insert(orderPayload).select('id,numero_pedido,status,valor_total').single();
+   if(orderError)throw orderError;
+   createdOrderId=order.id;
+   const itemRows=state.cart.map((item,index)=>({
+     pedido_id:order.id,
+     produto_id:item.produto_id,
+     produto_nome:item.produto_nome||'Produto',
+     quantidade:Number(item.quantidade||1),
+     valor_unitario:Number(item.valor_unitario||0),
+     subtotal:Number(item.subtotal ?? Number(item.quantidade||1)*Number(item.valor_unitario||0)),
+     ordem:index+1
+   }));
+   const {error:itemError}=await client.from('catalogo_pedido_itens').insert(itemRows);
+   if(itemError)throw itemError;
+   const {error:deleteError}=await client.from('catalogo_carrinho_itens').delete().eq('cliente_identificador',u.id);
+   if(deleteError)throw deleteError;
+   state.cart=[];
+   renderCart();
    await loadOrders();
-
-   if($('completedOrderNumber'))$('completedOrderNumber').textContent=numero;
-   const modal=$('orderSuccessModal');
-   if(modal){
-     modal.classList.remove('open');
-     modal.style.setProperty('display','none','important');
-     modal.setAttribute('aria-hidden','true');
-   }
-
-   notice(`Pedido nº ${numero} salvo com sucesso. Status: ${STATUS[status]||status}.`);
+   await window.PAMPATTO_REFRESH_ALL?.();
+   notice(`Pedido nº ${order.numero_pedido} salvo com sucesso. Status: Pedido realizado.`);
    window.openTab?.('pedidos');
-   setTimeout(()=>document.querySelector('#ordersContent .order-card')?.scrollIntoView({behavior:'smooth',block:'start'}),150);
+   setTimeout(()=>document.querySelector('#ordersContent .order-card')?.scrollIntoView({behavior:'smooth',block:'start'}),100);
  }catch(err){
+   if(createdOrderId){
+     try{await client.from('catalogo_pedido_itens').delete().eq('pedido_id',createdOrderId);await client.from('catalogo_pedidos').delete().eq('id',createdOrderId)}catch(_rollbackError){}
+   }
    console.error('Erro ao finalizar pedido:',err);
    notice(`Não foi possível salvar o pedido: ${err.message||err}`,true);
  }finally{
