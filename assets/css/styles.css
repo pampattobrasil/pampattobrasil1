@@ -59,3 +59,21 @@ body{font-family:Arial;padding:28px;color:#111}h1{margin-bottom:4px}table{width:
 .order-step span{position:relative;z-index:1;display:grid;place-items:center;width:30px;height:30px;margin:0 auto 6px;border-radius:50%;background:#27231c;border:1px solid #5d5138;color:#bbb}
 .order-step.done{color:#f7c85d;font-weight:800}.order-step.done span{background:#d69f2d;color:#0b0904;border-color:#f7c85d}.order-step.done:before{background:#d69f2d}
 @media(max-width:700px){.order-track{grid-template-columns:1fr 1fr}.order-step:before{display:none}}
+
+/* Exibição obrigatória dos nomes dos produtos no Dashboard e em Produtos */
+.product-card h4.product-name,
+.product-card [data-product-name] {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  color: #fff3c4 !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  line-height: 1.25 !important;
+  min-height: 35px !important;
+  margin: 10px 8px 6px !important;
+  position: relative !important;
+  z-index: 2 !important;
+  overflow: visible !important;
+}
+.product-card .product-meta { padding-top: 2px !important; }
