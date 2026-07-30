@@ -38,8 +38,18 @@ async function restoreSession(){
 }
 
 async function loadProducts(){
- const {data,error}=await requireDb().from('produtos').select('*').eq('ativo',true).order('tipo').order('nome');
- if(error)throw error;state.produtos=data||[];
+ const {data,error}=await requireDb().from('produtos').select('*').eq('ativo',true);
+ if(error)throw error;
+ state.produtos=(data||[]).map((p,index)=>({
+   ...p,
+   id:p.id ?? p.produto_id ?? p.codigo ?? `produto-${index}`,
+   nome:String(p.nome ?? p.produto_nome ?? p.titulo ?? p.descricao ?? 'Produto sem nome').trim(),
+   tipo:String(p.tipo ?? p.categoria ?? p.grupo ?? 'Outros').trim(),
+   imagem_url:p.imagem_url ?? p.imagem ?? p.foto_url ?? p.foto ?? '',
+   valor:Number(p.valor ?? p.preco ?? p.valor_unitario ?? 0),
+   quantidade:Number(p.quantidade ?? p.estoque ?? p.saldo ?? 0),
+   ativo:p.ativo !== false
+ })).sort((a,b)=>a.tipo.localeCompare(b.tipo,'pt-BR')||a.nome.localeCompare(b.nome,'pt-BR'));
 }
 async function loadUsers(){
  if(!isAdmin())return;const {data,error}=await requireDb().from('usuarios').select('id,nome,cnpj,usuario,perfil,ativo,created_at').order('nome');if(error)throw error;state.usuarios=data||[];
@@ -49,7 +59,7 @@ async function loadOrderMetrics(){
 }
 
 function catButtons(){return `<div class="category-buttons">${cats.map(c=>`<button class="cat-btn ${state.filtroTipo===c?'active':''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>`}
-function productCard(p){return `<article class="product-card" data-product-id="${esc(p.id)}"><img src="${esc(p.imagem_url||'assets/images/logo.jpg')}" alt="${esc(p.nome)}"><h4 class="product-name" data-product-name>${esc(p.nome)}</h4><div class="product-meta"><div class="price">${money(p.valor)}</div></div><div class="catalog-quantity-controls"><div class="catalog-stepper"><button type="button" data-q="minus">−</button><input type="number" min="1" max="999" value="1"><button type="button" data-q="plus">+</button></div><button type="button" class="btn" data-q="add">Incluir</button></div></article>`}
+function productCard(p){const nome=String(p.nome||'Produto sem nome').trim();return `<article class="product-card" data-product-id="${esc(p.id)}" data-product-name-value="${esc(nome)}"><img src="${esc(p.imagem_url||'assets/images/logo.jpg')}" alt="${esc(nome)}"><h4 class="product-name" data-product-name title="${esc(nome)}">${esc(nome)}</h4><div class="product-meta"><div class="price">${money(p.valor)}</div></div><div class="catalog-quantity-controls"><div class="catalog-stepper"><button type="button" data-q="minus">−</button><input type="number" min="1" max="999" value="1"><button type="button" data-q="plus">+</button></div><button type="button" class="btn" data-q="add">Incluir</button></div></article>`}
 function renderProductArea(id){
  const root=$(id);if(!root)return;const input=id==='dashProducts'?$('buscaDash'):$('buscaProdutos');const termo=(input?.value||'').trim().toLowerCase();const base=state.produtos.filter(p=>(state.filtroTipo==='Todos'||p.tipo===state.filtroTipo)&&`${p.nome} ${p.tipo}`.toLowerCase().includes(termo));let html=catButtons();const groups=state.filtroTipo==='Todos'?Object.keys(categoryIcons):[state.filtroTipo];for(const cat of groups){const items=base.filter(p=>p.tipo===cat);if(items.length)html+=`<section class="product-section"><div class="section-title"><span>${categoryIcons[cat]||'•'}</span>${esc(cat)}</div><div class="product-grid">${items.map(productCard).join('')}</div></section>`}root.innerHTML=html||'<div class="empty">Nenhum produto encontrado.</div>';
 }
