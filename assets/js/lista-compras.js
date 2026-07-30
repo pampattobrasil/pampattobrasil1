@@ -4,7 +4,7 @@ if(window.__PAMPATTO_LISTA__)return;window.__PAMPATTO_LISTA__=true;
 const $=id=>document.getElementById(id),db=()=>window.pampattoSupabase||window.supabaseClient||null;
 const esc=(v='')=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-const STATUS={pedido_realizado:'Pedido realizado',em_separacao:'Em separação',separado:'Separado',entregue:'Entregue'};
+const STATUS={pedido_realizado:'Pedido realizado',em_separacao:'Em separação',separado:'Separado',entregue:'Concluído',concluido:'Concluído'};
 const state={cart:[],orders:[],lists:[],channels:[],bound:false};
 const user=()=>window.PAMPATTO_CURRENT_USER||window.currentUser||null;
 function notice(msg,error=false){const el=$('cartNotice');if(el){el.className=error?'notice error':'notice';el.textContent=msg}}
@@ -47,7 +47,42 @@ async function finish(){
  }
 }
 function timeline(status){status=status||'pedido_realizado';const keys=Object.keys(STATUS),n=Math.max(0,keys.indexOf(status));return `<div class="order-timeline">${keys.map((k,i)=>`<div class="order-stage ${i<=n?'done':''} ${i===n?'current':''}"><span>${i+1}</span><small>${STATUS[k]}</small></div>`).join('')}</div>`}
-async function loadOrders(){const u=user(),target=$('ordersContent');if(!u||!target)return;let q=db().from('catalogo_pedidos').select('id,numero_pedido,cliente_identificador,cliente_nome,status,valor_total,created_at,catalogo_pedido_itens(id,produto_nome,quantidade,valor_unitario,subtotal,ordem)').order('created_at',{ascending:false});if(u.perfil!=='admin')q=q.eq('cliente_identificador',u.id);const {data,error}=await q;if(error){target.innerHTML=`<div class="notice error">${esc(error.message)}</div>`;return}state.orders=data||[];target.innerHTML=`<div class="panel"><div class="panel-head"><div><h3>${u.perfil==='admin'?'Pedidos':'Meus pedidos'}</h3><p class="muted">Informações atualizadas diretamente do banco.</p></div><button class="outline-btn" id="refreshOrdersBtn">Atualizar</button></div><div class="orders-list">${state.orders.length?state.orders.map(o=>`<article class="order-card" data-order-id="${o.id}"><div class="order-card-head"><div><strong>Pedido nº ${esc(o.numero_pedido)}</strong><div class="shopping-list-meta"><span>${new Date(o.created_at).toLocaleString('pt-BR')}</span>${u.perfil==='admin'?`<span>Cliente: ${esc(o.cliente_nome)}</span>`:''}</div></div><div style="text-align:right"><strong>${money(o.valor_total)}</strong><div><span class="tag">${esc(STATUS[o.status]||o.status||'Pedido realizado')}</span></div></div></div>${timeline(o.status)}<div class="order-items">${(o.catalogo_pedido_itens||[]).sort((a,b)=>a.ordem-b.ordem).map(i=>`<div><span>${i.quantidade}× ${esc(i.produto_nome)}</span><strong>${money(i.subtotal)}</strong></div>`).join('')}</div>${u.perfil==='admin'?`<div class="order-admin-status"><label>Alterar status</label><select data-status>${Object.entries(STATUS).map(([k,v])=>`<option value="${k}" ${o.status===k?'selected':''}>${v}</option>`).join('')}</select><button class="btn" data-save-status>Salvar status</button></div>`:''}</article>`).join(''):'<div class="shopping-empty muted">Nenhum pedido encontrado.</div>'}</div></div>`;$('refreshOrdersBtn')?.addEventListener('click',loadOrders)}
+async function loadOrders(){
+ const u=user(),target=$('ordersContent');
+ if(!u||!target)return;
+ let q=db().from('catalogo_pedidos')
+   .select('id,numero_pedido,sequencial,cliente_identificador,cliente_nome,status,valor_total,created_at,catalogo_pedido_itens(id,produto_nome,quantidade,valor_unitario,subtotal,ordem)')
+   .order('created_at',{ascending:false});
+ if(u.perfil!=='admin')q=q.eq('cliente_identificador',u.id).limit(5);
+ const {data,error}=await q;
+ if(error){target.innerHTML=`<div class="notice error">${esc(error.message)}</div>`;return}
+ state.orders=data||[];
+ target.innerHTML=`<div class="panel">
+   <div class="panel-head"><div><h3>${u.perfil==='admin'?'Pedidos':'Meus últimos pedidos'}</h3><p class="muted">${u.perfil==='admin'?'Todos os pedidos salvos no banco.':'Os cinco pedidos mais recentes ficam sempre disponíveis aqui.'}</p></div><button class="outline-btn" id="refreshOrdersBtn">Atualizar</button></div>
+   <div class="orders-list">${state.orders.length?state.orders.map(o=>{
+     const completed=['entregue','concluido'].includes(o.status);
+     return `<article class="order-card ${completed?'order-completed':''}" data-order-id="${o.id}">
+       <div class="order-card-head">
+         <div>
+           <strong class="order-number">Pedido nº ${esc(o.numero_pedido||o.sequencial||'—')}</strong>
+           <div class="shopping-list-meta">
+             <span>${new Date(o.created_at).toLocaleString('pt-BR')}</span>
+             <span>Cliente: <strong>${esc(o.cliente_nome||u.nome||'Cliente')}</strong></span>
+           </div>
+         </div>
+         <div class="order-value-status">
+           <strong>${money(o.valor_total)}</strong>
+           <div><span class="tag ${completed?'status-completed':''}">${esc(STATUS[o.status]||o.status||'Pedido realizado')}</span></div>
+         </div>
+       </div>
+       ${timeline(o.status)}
+       <div class="order-items">${(o.catalogo_pedido_itens||[]).sort((a,b)=>Number(a.ordem||0)-Number(b.ordem||0)).map(i=>`<div><span>${i.quantidade}× ${esc(i.produto_nome)}</span><strong>${money(i.subtotal??(Number(i.quantidade||0)*Number(i.valor_unitario||0)))}</strong></div>`).join('')}</div>
+       ${u.perfil==='admin'?`<div class="order-admin-status"><label>Alterar status</label><select data-status>${Object.entries(STATUS).map(([k,v])=>`<option value="${k}" ${o.status===k?'selected':''}>${v}</option>`).join('')}</select><button class="btn" data-save-status>Salvar status</button></div>`:''}
+     </article>`;
+   }).join(''):'<div class="shopping-empty muted">Nenhum pedido encontrado.</div>'}</div>
+ </div>`;
+ $('refreshOrdersBtn')?.addEventListener('click',loadOrders);
+}
 async function saveStatus(card,btn){btn.disabled=true;const {error}=await db().rpc('atualizar_status_pedido',{p_pedido_id:card.dataset.orderId,p_novo_status:card.querySelector('[data-status]').value});btn.disabled=false;if(error)return alert(error.message);await loadOrders()}
 
 function addListRow(nome='',quantidade=1){const box=$('listaComprasItens');if(!box)return;const row=document.createElement('div');row.className='shopping-list-item';row.innerHTML=`<input data-list-name placeholder="Produto" value="${esc(nome)}" required><select data-list-qty>${Array.from({length:10},(_,i)=>`<option value="${i+1}" ${i+1===quantidade?'selected':''}>${i+1}</option>`).join('')}</select><button type="button" class="outline-btn danger-outline" data-remove-list>Remover</button>`;box.appendChild(row)}
