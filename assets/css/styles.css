@@ -94,3 +94,52 @@ body{font-family:Arial;padding:28px;color:#111}h1{margin-bottom:4px}table{width:
 #tab-estoque #tbody .stock-edit {
   width: 110px;
 }
+
+/* ===== PEDIDOS ===== */
+
+.orders-panel,
+.orders-panel *{
+    color:#f4c44d !important;
+}
+
+.order-card h3,
+.order-card h4,
+.order-card strong,
+.order-card span,
+.order-card p,
+.order-card td,
+.order-card th,
+.order-card label{
+    color:#f4c44d !important;
+}
+
+.order-card .muted{
+    color:#f4c44d !important;
+    opacity:.95;
+}
+
+.order-card .price{
+    color:#f4c44d !important;
+    font-weight:700;
+}
+
+.order-card .numero-pedido{
+    color:#f4c44d !important;
+    font-size:22px;
+    font-weight:700;
+}
+
+.order-card table thead th{
+    background:#141414 !important;
+    color:#f4c44d !important;
+}
+
+.order-card table tbody td{
+    color:#f4c44d !important;
+}
+
+.order-card select{
+    color:#f4c44d;
+    background:#121212;
+    border:1px solid #7a5b00;
+}
