@@ -143,3 +143,59 @@ body{font-family:Arial;padding:28px;color:#111}h1{margin-bottom:4px}table{width:
     background:#121212;
     border:1px solid #7a5b00;
 }
+
+/* =========================================================
+   HOTFIX — TEXTOS DO CARRINHO EM AMARELO
+   Ajusta somente cores visuais no menu Carrinho.
+   ========================================================= */
+
+#tab-carrinho #cartView,
+#tab-carrinho #cartView .cart-item-row,
+#tab-carrinho #cartView .cart-item-row *,
+#tab-carrinho #cartView .cart-total,
+#tab-carrinho #cartView .cart-total *,
+#tab-carrinho #cartView .cart-summary,
+#tab-carrinho #cartView .cart-summary *,
+#tab-carrinho #cartView .order-total,
+#tab-carrinho #cartView .order-total *,
+#tab-carrinho #cartView [class*="total"],
+#tab-carrinho #cartView [class*="total"] *,
+#tab-carrinho #cartView [class*="price"],
+#tab-carrinho #cartView [class*="price"] * {
+  color: #f4c44d !important;
+}
+
+/* Nome, preço unitário, subtotal e valor total */
+#tab-carrinho .cart-item-name,
+#tab-carrinho .cart-item-price,
+#tab-carrinho .cart-item-unit-price,
+#tab-carrinho .cart-item-subtotal,
+#tab-carrinho .cart-total-label,
+#tab-carrinho .cart-total-value,
+#tab-carrinho .total-label,
+#tab-carrinho .total-value,
+#tab-carrinho strong {
+  color: #f4c44d !important;
+}
+
+/* Botão Remover */
+#tab-carrinho button[data-action="remove"],
+#tab-carrinho button[data-remove],
+#tab-carrinho .remove-item,
+#tab-carrinho .btn-remove,
+#tab-carrinho .cart-remove,
+#tab-carrinho .cart-item-row button:last-child {
+  color: #f4c44d !important;
+}
+
+/* Mantém os botões dourados principais com texto escuro */
+#tab-carrinho #finishCartBtn,
+#tab-carrinho .btn {
+  color: #0b0904 !important;
+}
+
+/* Mantém o botão Cancelar pedido no padrão amarelo */
+#tab-carrinho #clearCartBtn,
+#tab-carrinho .outline-btn {
+  color: #f4c44d !important;
+}
