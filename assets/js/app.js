@@ -19,11 +19,11 @@ const PRODUCT_IMAGE_MAP={
  'contrafile':'contrafile.jpg','coracao':'coracao.jpg','costela bovina':'costela-bovina.jpg',
  'costela suina':'costela-suina.jpg','coxa e sobrecoxa':'coxa-e-sobrecoxa.jpg','coxao duro':'coxao-duro.jpg',
  'coxao mole':'coxao-mole.jpg','cupim':'cupim.jpg','figado':'figado.jpg','file de peito':'file-de-peito.jpg',
- 'file de peixe panga':'file-de-peixe-panga.jpg','frango inteiro':'frango-inteiro.jpg',
+ 'file de peixe panga':'file-de-peixe-panga.jpg','frango em iscas':'frango-em-iscas.jpg','frango inteiro':'frango-inteiro.jpg',
  'hamburguer 36 un':'hamburguer-36-un.jpg','hamburguer de frango':'hamburguer-de-frango.jpg',
  'hamburguer':'hamburguer.jpg','lagarto':'lagarto.jpg','linguica calabresa':'linguica-calabresa.jpg',
  'linguica de frango':'linguica-de-frango.jpg','linguica toscana':'linguica-toscana.jpg',
- 'meio da asa':'meio-da-asa.jpg','moela':'moela.jpg','patinho em cubos':'patinho-em-cubos.jpg',
+ 'meio da asa':'meio-da-asa.jpg','moela':'moela.jpg','patinho em bife':'patinho-em-bife.jpg','patinho em cubos':'patinho-em-cubos.jpg',
  'patinho moido':'patinho-moido.jpg','pe de frango':'pe-de-frango.jpg','peito de frango':'peito-de-frango.jpg',
  'pernil em cubos':'pernil-em-cubos.jpg','picanha':'picanha.jpg','salmao':'salmao.jpg','tilapia':'tilapia.jpg'
 };
