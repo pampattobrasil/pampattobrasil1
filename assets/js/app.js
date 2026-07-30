@@ -96,7 +96,14 @@ async function loadUsers(){
  if(!isAdmin())return;const {data,error}=await requireDb().from('usuarios').select('id,nome,cnpj,usuario,perfil,ativo,created_at').order('nome');if(error)throw error;state.usuarios=data||[];
 }
 async function loadOrderMetrics(){
- const client=requireDb();let q=client.from('catalogo_pedidos').select('id,cliente_identificador,valor_total,created_at');if(!isAdmin())q=q.eq('cliente_identificador',state.currentUser.id);const {data,error}=await q;if(error)throw error;state.pedidos=data||[];
+ const client=requireDb();
+ let q=client.from('catalogo_pedidos')
+   .select('id,numero_pedido,sequencial,cliente_identificador,cliente_nome,status,valor_total,created_at,catalogo_pedido_itens(id,produto_nome,quantidade,valor_unitario,subtotal,ordem)')
+   .order('created_at',{ascending:false});
+ if(!isAdmin())q=q.eq('cliente_identificador',state.currentUser.id).limit(5);
+ const {data,error}=await q;
+ if(error)throw error;
+ state.pedidos=data||[];
 }
 
 function catButtons(){return `<div class="category-buttons">${cats.map(c=>`<button class="cat-btn ${state.filtroTipo===c?'active':''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>`}
@@ -130,8 +137,147 @@ function renderMetrics(){
  const month=new Date().toISOString().slice(0,7);const monthly=state.pedidos.filter(p=>String(p.created_at||'').slice(0,7)===month);if($('metricProducts'))$('metricProducts').textContent=state.produtos.length;if($('metricOrders'))$('metricOrders').textContent=state.pedidos.length;if(isAdmin()){if($('metricLow'))$('metricLow').textContent=state.produtos.filter(p=>Number(p.quantidade||0)<=0).length;if($('metricSales'))$('metricSales').textContent=money(monthly.reduce((s,p)=>s+Number(p.valor_total||0),0))}
 }
 function applyPermissions(){document.querySelectorAll('.admin-only').forEach(el=>el.style.display=isAdmin()?'':'none');if($('currentUserName'))$('currentUserName').textContent=state.currentUser.nome;if($('currentUserRole'))$('currentUserRole').textContent=isAdmin()?'Administrador':state.currentUser.usuario;if($('ordersMenuLabel'))$('ordersMenuLabel').textContent=isAdmin()?'Pedidos':'Meus pedidos';if($('acompanharListaMenu'))$('acompanharListaMenu').style.display=isAdmin()?'':'none'}
+function reportFilterValues(){
+ return {
+   mes:$('reportMes')?.value||'',
+   ano:$('reportAno')?.value||'',
+   cliente:$('reportCliente')?.value||'',
+   numero:($('reportNumero')?.value||'').trim().toLowerCase()
+ };
+}
+function filteredReportOrders(){
+ const f=reportFilterValues();
+ return state.pedidos.filter(p=>{
+   const d=new Date(p.created_at);
+   const mes=String(d.getMonth()+1).padStart(2,'0');
+   const ano=String(d.getFullYear());
+   const cliente=String(p.cliente_identificador||p.cliente_nome||'');
+   const numero=String(p.numero_pedido||'').toLowerCase();
+   return (!f.mes||mes===f.mes)
+     &&(!f.ano||ano===f.ano)
+     &&(!f.cliente||cliente===f.cliente)
+     &&(!f.numero||numero.includes(f.numero));
+ });
+}
+function reportStatusLabel(status){
+ return ({
+   pedido_realizado:'Pedido realizado',
+   em_separacao:'Em separação',
+   separado:'Separado',
+   entregue:'Concluído',
+   concluido:'Concluído'
+ })[status]||status||'Pedido realizado';
+}
+function renderReportResults(){
+ const target=$('reportResults');
+ if(!target)return;
+ const pedidos=filteredReportOrders();
+ const total=pedidos.reduce((s,p)=>s+Number(p.valor_total||0),0);
+ const qtdItens=pedidos.reduce((s,p)=>s+(p.catalogo_pedido_itens||[]).reduce((x,i)=>x+Number(i.quantidade||0),0),0);
+ if($('reportCount'))$('reportCount').textContent=pedidos.length;
+ if($('reportItems'))$('reportItems').textContent=qtdItens;
+ if($('reportTotal'))$('reportTotal').textContent=money(total);
+ target.innerHTML=pedidos.length?`
+   <div class="table-wrap report-table-wrap">
+     <table class="report-table">
+       <thead><tr><th>Pedido</th><th>Data</th><th>Cliente</th><th>Status</th><th>Itens</th><th>Total</th></tr></thead>
+       <tbody>${pedidos.map(p=>`
+         <tr>
+           <td><strong>${esc(p.numero_pedido||'—')}</strong></td>
+           <td>${new Date(p.created_at).toLocaleDateString('pt-BR')}</td>
+           <td>${esc(p.cliente_nome||'Cliente')}</td>
+           <td><span class="tag ${['entregue','concluido'].includes(p.status)?'status-completed':''}">${esc(reportStatusLabel(p.status))}</span></td>
+           <td>${(p.catalogo_pedido_itens||[]).reduce((s,i)=>s+Number(i.quantidade||0),0)}</td>
+           <td><strong>${money(p.valor_total)}</strong></td>
+         </tr>
+         <tr class="report-items-row"><td colspan="6">
+           <div class="report-products">${(p.catalogo_pedido_itens||[]).sort((a,b)=>Number(a.ordem||0)-Number(b.ordem||0)).map(i=>`
+             <span>${Number(i.quantidade||0)}× ${esc(i.produto_nome)} — ${money(i.subtotal??(Number(i.quantidade||0)*Number(i.valor_unitario||0)))}</span>
+           `).join('')}</div>
+         </td></tr>`).join('')}</tbody>
+     </table>
+   </div>`:'<div class="empty">Nenhum pedido encontrado para os filtros selecionados.</div>';
+}
+function exportReportPdf(){
+ const pedidos=filteredReportOrders();
+ if(!pedidos.length)return alert('Nenhum pedido encontrado para gerar o PDF.');
+ const jsPDFCtor=window.jspdf?.jsPDF;
+ if(!jsPDFCtor)return alert('O gerador de PDF ainda não foi carregado. Atualize a página.');
+ const doc=new jsPDFCtor({orientation:'portrait',unit:'mm',format:'a4'});
+ const f=reportFilterValues();
+ const filtros=[
+   f.mes?`Mês: ${f.mes}`:'',
+   f.ano?`Ano: ${f.ano}`:'',
+   f.cliente?`Cliente: ${$('reportCliente')?.selectedOptions?.[0]?.textContent||f.cliente}`:'',
+   f.numero?`Pedido: ${f.numero}`:''
+ ].filter(Boolean).join(' | ')||'Todos os pedidos';
+ doc.setFontSize(16);
+ doc.text('Empório Pampatto Brasil - Relatório de Pedidos',14,16);
+ doc.setFontSize(9);
+ doc.text(`Filtros: ${filtros}`,14,23);
+ doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`,14,28);
+ const rows=[];
+ pedidos.forEach(p=>{
+   const itens=(p.catalogo_pedido_itens||[]).sort((a,b)=>Number(a.ordem||0)-Number(b.ordem||0));
+   if(!itens.length){
+     rows.push([p.numero_pedido||'—',new Date(p.created_at).toLocaleDateString('pt-BR'),p.cliente_nome||'Cliente','—','—',money(p.valor_total)]);
+   }else{
+     itens.forEach((i,n)=>rows.push([
+       n===0?(p.numero_pedido||'—'):'',
+       n===0?new Date(p.created_at).toLocaleDateString('pt-BR'):'',
+       n===0?(p.cliente_nome||'Cliente'):'',
+       i.produto_nome||'Produto',
+       String(Number(i.quantidade||0)),
+       money(i.subtotal??(Number(i.quantidade||0)*Number(i.valor_unitario||0)))
+     ]));
+     rows.push(['','','','Total do pedido','',money(p.valor_total)]);
+   }
+ });
+ doc.autoTable({
+   startY:34,
+   head:[['Pedido','Data','Cliente','Produto','Qtd.','Valor']],
+   body:rows,
+   styles:{fontSize:8,cellPadding:2},
+   headStyles:{fillColor:[35,30,12],textColor:[245,190,55]},
+   alternateRowStyles:{fillColor:[248,246,238]},
+   columnStyles:{5:{halign:'right'}}
+ });
+ const total=pedidos.reduce((s,p)=>s+Number(p.valor_total||0),0);
+ const y=(doc.lastAutoTable?.finalY||34)+8;
+ doc.setFontSize(11);
+ doc.text(`Quantidade de pedidos: ${pedidos.length}`,14,y);
+ doc.text(`Valor total filtrado: ${money(total)}`,14,y+6);
+ doc.save(`relatorio-pedidos-${new Date().toISOString().slice(0,10)}.pdf`);
+}
 function renderReports(){
- const target=$('reportsContent');if(!target||!isAdmin())return;const month=new Date().toISOString().slice(0,7);target.innerHTML=`<div class="panel"><div class="panel-head"><div><h3>Relatórios</h3><p class="muted">Dados atualizados diretamente do Supabase.</p></div></div><div class="metrics"><div class="metric"><div><span class="muted">PEDIDOS NO MÊS</span><div class="big">${state.pedidos.filter(p=>String(p.created_at).slice(0,7)===month).length}</div></div></div><div class="metric"><div><span class="muted">VENDAS NO MÊS</span><div class="big small">${money(state.pedidos.filter(p=>String(p.created_at).slice(0,7)===month).reduce((s,p)=>s+Number(p.valor_total||0),0))}</div></div></div></div></div>`;
+ const target=$('reportsContent');
+ if(!target||!isAdmin())return;
+ const anos=[...new Set(state.pedidos.map(p=>String(new Date(p.created_at).getFullYear())))].sort((a,b)=>b-a);
+ const clientesMap=new Map();
+ state.pedidos.forEach(p=>clientesMap.set(String(p.cliente_identificador||p.cliente_nome||''),p.cliente_nome||'Cliente'));
+ target.innerHTML=`
+ <div class="panel">
+   <div class="panel-head"><div><h3>Relatórios de pedidos</h3><p class="muted">Filtre os pedidos salvos no Supabase e exporte os resultados em PDF.</p></div></div>
+   <div class="report-filters">
+     <label>Mês<select id="reportMes"><option value="">Todos</option>${Array.from({length:12},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}">${new Date(2026,i,1).toLocaleDateString('pt-BR',{month:'long'})}</option>`).join('')}</select></label>
+     <label>Ano<select id="reportAno"><option value="">Todos</option>${anos.map(a=>`<option value="${a}">${a}</option>`).join('')}</select></label>
+     <label>Cliente<select id="reportCliente"><option value="">Todos</option>${[...clientesMap.entries()].sort((a,b)=>a[1].localeCompare(b[1],'pt-BR')).map(([id,nome])=>`<option value="${esc(id)}">${esc(nome)}</option>`).join('')}</select></label>
+     <label>Número do pedido<input id="reportNumero" placeholder="Digite o número"></label>
+     <div class="report-filter-actions"><button class="btn" type="button" id="applyReportFilters">Filtrar</button><button class="outline-btn" type="button" id="clearReportFilters">Limpar</button><button class="outline-btn report-pdf-btn" type="button" id="exportReportPdf">Exportar PDF</button></div>
+   </div>
+   <div class="metrics report-metrics">
+     <div class="metric"><div><span class="muted">PEDIDOS FILTRADOS</span><div class="big" id="reportCount">0</div></div></div>
+     <div class="metric"><div><span class="muted">ITENS</span><div class="big" id="reportItems">0</div></div></div>
+     <div class="metric"><div><span class="muted">VALOR TOTAL</span><div class="big small" id="reportTotal">R$ 0,00</div></div></div>
+   </div>
+   <div id="reportResults"></div>
+ </div>`;
+ $('applyReportFilters')?.addEventListener('click',renderReportResults);
+ $('clearReportFilters')?.addEventListener('click',()=>{['reportMes','reportAno','reportCliente','reportNumero'].forEach(id=>{if($(id))$(id).value=''});renderReportResults()});
+ $('exportReportPdf')?.addEventListener('click',exportReportPdf);
+ ['reportMes','reportAno','reportCliente'].forEach(id=>$(id)?.addEventListener('change',renderReportResults));
+ $('reportNumero')?.addEventListener('input',renderReportResults);
+ renderReportResults();
 }
 function ensureProductNamesVisible(){
  document.querySelectorAll('.product-card .product-name,[data-product-name]').forEach(el=>{
