@@ -47,18 +47,34 @@ async function finish(){
    if(btn){btn.disabled=false;btn.textContent=originalText}
  }
 }
+
+function formatExistingNumber(dateValue,sequencial,prefix=''){
+ const seq=Number(sequencial);
+ if(!Number.isFinite(seq)||seq<3000)return '—';
+ const d=new Date(dateValue);
+ const dd=String(d.getDate()).padStart(2,'0');
+ const mm=String(d.getMonth()+1).padStart(2,'0');
+ const yy=String(d.getFullYear()).slice(-2);
+ return `${dd}${mm}${yy}${prefix}${seq}`;
+}
+
 function normalizeOrderStatus(status){
  if(status==='entregue')return 'concluido';
  return STATUS[status]?status:'pedido_realizado';
 }
 function timeline(status,labels=STATUS){
- const keys=Object.keys(labels),normalized=status==='entregue'?'concluido':status;
- const n=Math.max(0,keys.indexOf(normalized));
- return `<div class="status-track">${keys.map((k,i)=>`
-   <div class="status-step ${i<=n?'is-done':''} ${i===n?'is-current':''}">
-     <span class="status-dot">${i<n?'✓':i+1}</span>
-     <small>${labels[k]}</small>
-   </div>`).join('')}</div>`;
+ const keys=Object.keys(labels);
+ const normalized=status==='entregue'?'concluido':status;
+ const current=Math.max(0,keys.indexOf(normalized));
+ const progress=keys.length>1?(current/(keys.length-1))*100:0;
+ return `<div class="pampatto-status-ruler" style="--status-progress:${progress}%">
+   <div class="status-ruler-line"><span></span></div>
+   ${keys.map((key,index)=>`
+     <div class="status-ruler-step ${index<=current?'completed':''} ${index===current?'current':''}">
+       <span class="status-ruler-circle">${index<current?'✓':index+1}</span>
+       <span class="status-ruler-label">${esc(labels[key])}</span>
+     </div>`).join('')}
+ </div>`;
 }
 async function loadOrders(){
  const u=user(),target=$('ordersContent');
@@ -77,7 +93,7 @@ async function loadOrders(){
      return `<article class="order-card ${completed?'order-completed':''}" data-order-id="${o.id}">
        <div class="order-card-head">
          <div>
-           <strong class="order-number">Pedido nº ${esc(o.numero_pedido||o.sequencial||'—')}</strong>
+           <strong class="order-number">Pedido nº ${esc(o.numero_pedido||formatExistingNumber(o.created_at,o.sequencial))}</strong>
            <div class="shopping-list-meta">
              <span>${new Date(o.created_at).toLocaleString('pt-BR')}</span>
              <span>Cliente: <strong>${esc(o.cliente_nome||u.nome||'Cliente')}</strong></span>
@@ -90,18 +106,27 @@ async function loadOrders(){
        </div>
        ${timeline(normalizedStatus)}
        <div class="order-items">${(o.catalogo_pedido_itens||[]).sort((a,b)=>Number(a.ordem||0)-Number(b.ordem||0)).map(i=>`<div><span>${i.quantidade}× ${esc(i.produto_nome)}</span><strong>${money(i.subtotal??(Number(i.quantidade||0)*Number(i.valor_unitario||0)))}</strong></div>`).join('')}</div>
-       ${u.perfil==='admin'?`<div class="order-admin-status"><label>Alterar status</label><select data-status>${Object.entries(STATUS).map(([k,v])=>`<option value="${k}" ${normalizedStatus===k?'selected':''}>${v}</option>`).join('')}</select><button class="btn" data-save-status>Salvar status</button></div>`:''}
+       ${u.perfil==='admin'?`<div class="order-admin-status"><label>Alterar status</label><select data-status>${Object.entries(STATUS).map(([k,v])=>`<option value="${k}" ${normalizedStatus===k?'selected':''}>${v}</option>`).join('')}</select><button class="btn status-save-button" type="button" data-save-status>Salvar status</button></div>`:''}
      </article>`;
    }).join(''):'<div class="shopping-empty muted">Nenhum pedido encontrado.</div>'}</div>
  </div>`;
  $('refreshOrdersBtn')?.addEventListener('click',loadOrders);
 }
 async function saveStatus(card,btn){
+ const novoStatus=card.querySelector('[data-status]')?.value;
+ if(!novoStatus)return;
+ const original=btn.textContent;
  btn.disabled=true;
- const novoStatus=card.querySelector('[data-status]').value;
- const {error}=await db().from('catalogo_pedidos').update({status:novoStatus}).eq('id',card.dataset.orderId);
+ btn.textContent='Salvando...';
+ const {error}=await db().rpc('pampatto_atualizar_status_pedido_v8',{
+   p_pedido_id:card.dataset.orderId,
+   p_status:novoStatus
+ });
  btn.disabled=false;
- if(error)return alert(error.message);
+ btn.textContent=original;
+ if(error)return alert(`Não foi possível atualizar o status do pedido.
+
+${error.message}`);
  await loadOrders();
 }
 
@@ -177,14 +202,20 @@ function listPdf(lista){
  doc.save(`lista-${lista.numero_lista||lista.id}.pdf`);
 }
 async function saveListStatus(card,btn){
+ const status=card.querySelector('[data-list-status]')?.value;
+ if(!status)return;
+ const original=btn.textContent;
  btn.disabled=true;
- const status=card.querySelector('[data-list-status]').value;
- const {error}=await db().rpc('pampatto_atualizar_status_lista_v7',{
+ btn.textContent='Salvando...';
+ const {error}=await db().rpc('pampatto_atualizar_status_lista_v8',{
    p_lista_id:card.dataset.listId,
    p_status:status
  });
  btn.disabled=false;
- if(error)return alert(error.message);
+ btn.textContent=original;
+ if(error)return alert(`Não foi possível atualizar o status da lista.
+
+${error.message}`);
  await loadLists();
 }
 async function loadLists(){
@@ -203,7 +234,7 @@ async function loadLists(){
    return `<article class="order-card list-card ${completed?'order-completed':''}" data-list-id="${l.id}">
      <div class="order-card-head">
        <div>
-         <strong class="order-number">Lista nº ${esc(l.numero_lista||l.sequencial||'—')}</strong>
+         <strong class="order-number">Lista nº ${esc(l.numero_lista||formatExistingNumber(l.created_at,l.sequencial,'C'))}</strong>
          <div class="shopping-list-meta">
            <span>Cliente: <strong>${esc(l.cliente_nome||'Cliente')}</strong></span>
            <span>${new Date(l.created_at).toLocaleString('pt-BR')}</span>
@@ -220,7 +251,7 @@ async function loadLists(){
      ${u.perfil==='admin'?`<div class="order-admin-status">
        <label>Alterar status</label>
        <select data-list-status>${Object.entries(LIST_STATUS).map(([k,v])=>`<option value="${k}" ${status===k?'selected':''}>${v}</option>`).join('')}</select>
-       <button class="btn" type="button" data-save-list-status>Salvar status</button>
+       <button class="btn status-save-button" type="button" data-save-list-status>Salvar status</button>
      </div>`:''}
    </article>`;
  }).join(''):'<div class="shopping-empty muted">Nenhuma lista encontrada.</div>';
