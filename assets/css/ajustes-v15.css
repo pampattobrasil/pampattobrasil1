@@ -1,0 +1,133 @@
+/* =========================================================
+   PAMPATTO V15 — HOTFIX VISUAL ESPECÍFICO
+   Apenas:
+   - Clientes;
+   - Relatórios;
+   - Régua de status.
+   ========================================================= */
+
+/* 1. Tabelas de Clientes e Relatórios totalmente escuras */
+#tab-empresa .table-wrap,
+#tab-relatorios .table-wrap,
+#tab-empresa table,
+#tab-relatorios table {
+  background: #0b0a07 !important;
+  border-color: #6f5310 !important;
+}
+
+#tab-empresa table thead,
+#tab-empresa table thead tr,
+#tab-empresa table thead th,
+#tab-relatorios table thead,
+#tab-relatorios table thead tr,
+#tab-relatorios table thead th {
+  background: #171207 !important;
+  color: #ffd45c !important;
+  border-color: #6f5310 !important;
+}
+
+#tab-empresa table tbody,
+#tab-empresa table tbody tr,
+#tab-empresa table tbody td,
+#tab-relatorios table tbody,
+#tab-relatorios table tbody tr,
+#tab-relatorios table tbody td {
+  background: #0b0a07 !important;
+  color: #f5cf62 !important;
+  border-color: rgba(111,83,16,.55) !important;
+}
+
+#tab-empresa table tbody tr:nth-child(even),
+#tab-relatorios table tbody tr:nth-child(even) {
+  background: #100e08 !important;
+}
+
+#tab-empresa table tbody tr:hover,
+#tab-relatorios table tbody tr:hover {
+  background: #171207 !important;
+}
+
+#tab-empresa .role-badge,
+#tab-empresa .password-mask,
+#tab-empresa .mini-btn,
+#tab-relatorios .tag {
+  color: #ffd45c !important;
+}
+
+/* Campos do cadastro sem fundo claro */
+#tab-empresa input,
+#tab-empresa select,
+#tab-relatorios input,
+#tab-relatorios select {
+  background: #11100c !important;
+  color: #f5cf62 !important;
+  border-color: #75580f !important;
+}
+
+#tab-empresa input::placeholder,
+#tab-relatorios input::placeholder {
+  color: #b8a46d !important;
+}
+
+/* 2. Régua de status com animação leve */
+#ordersContent .status-ruler-line > span,
+#acompanharListaConteudo .status-ruler-line > span {
+  position: relative !important;
+  overflow: hidden !important;
+  transition: width .45s ease-in-out !important;
+}
+
+#ordersContent .status-ruler-line > span::after,
+#acompanharListaConteudo .status-ruler-line > span::after {
+  content: "" !important;
+  position: absolute !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  left: -35% !important;
+  width: 28% !important;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255,255,255,.55),
+    transparent
+  ) !important;
+  animation: pampattoStatusShine 2.4s linear infinite !important;
+}
+
+#ordersContent .status-ruler-step.current .status-ruler-circle,
+#acompanharListaConteudo .status-ruler-step.current .status-ruler-circle {
+  animation: pampattoStatusPulse 1.8s ease-in-out infinite !important;
+}
+
+@keyframes pampattoStatusShine {
+  from { left: -35%; }
+  to { left: 110%; }
+}
+
+@keyframes pampattoStatusPulse {
+  0%,100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 4px rgba(225,163,29,.13);
+  }
+  50% {
+    transform: scale(1.08);
+    box-shadow: 0 0 0 7px rgba(225,163,29,.08);
+  }
+}
+
+/* Verde para concluído, preservando a animação */
+#ordersContent .order-completed .status-ruler-step.current .status-ruler-circle,
+#acompanharListaConteudo .order-completed .status-ruler-step.current .status-ruler-circle {
+  animation-name: pampattoStatusPulseGreen !important;
+}
+
+@keyframes pampattoStatusPulseGreen {
+  0%,100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 4px rgba(76,202,116,.14);
+  }
+  50% {
+    transform: scale(1.08);
+    box-shadow: 0 0 0 7px rgba(76,202,116,.08);
+  }
+}
