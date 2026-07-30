@@ -64,7 +64,9 @@ function normalizeOrderStatus(status){
  return STATUS[status]?status:'pedido_realizado';
 }
 function timeline(status,labels=STATUS){
- const keys=Object.keys(labels);
+ const visibleEntries=Object.entries(labels).filter(([key])=>key!=='cancelado');
+ const keys=visibleEntries.map(([key])=>key);
+ const visibleLabels=Object.fromEntries(visibleEntries);
  const normalized=status==='entregue'?'concluido':status;
  const current=Math.max(0,keys.indexOf(normalized));
  const progress=keys.length>1?(current/(keys.length-1))*100:0;
@@ -73,7 +75,7 @@ function timeline(status,labels=STATUS){
    ${keys.map((key,index)=>`
      <div class="status-ruler-step ${index<=current?'completed':''} ${index===current?'current':''}">
        <span class="status-ruler-circle">${index<current?'✓':index+1}</span>
-       <span class="status-ruler-label">${esc(labels[key])}</span>
+       <span class="status-ruler-label">${esc(visibleLabels[key])}</span>
      </div>`).join('')}
  </div>`;
 }
