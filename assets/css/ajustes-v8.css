@@ -1,0 +1,216 @@
+* PAMPATTO V8 — CORREÇÕES DE STATUS, CORES E NÚMEROS */
+
+/* Garante leitura em amarelo em pedidos e listas */
+#ordersContent,
+#ordersContent .panel,
+#ordersContent .order-card,
+#ordersContent .order-card *,
+#acompanharListaConteudo,
+#acompanharListaConteudo .order-card,
+#acompanharListaConteudo .order-card * {
+  color: #f5cf62 !important;
+}
+
+#ordersContent .muted,
+#acompanharListaConteudo .muted,
+#ordersContent .shopping-list-meta,
+#acompanharListaConteudo .shopping-list-meta {
+  color: #d8c48d !important;
+}
+
+#ordersContent .order-number,
+#acompanharListaConteudo .order-number {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  color: #ffd65a !important;
+  font-size: 18px !important;
+  font-weight: 900 !important;
+  margin-bottom: 8px !important;
+}
+
+#ordersContent .order-items,
+#acompanharListaConteudo .order-items {
+  border-top: 1px solid rgba(241,190,56,.22) !important;
+  border-bottom: 1px solid rgba(241,190,56,.22) !important;
+  margin-top: 14px !important;
+  padding: 10px 0 !important;
+}
+
+#ordersContent .order-items > div,
+#acompanharListaConteudo .order-items > div {
+  color: #f6d778 !important;
+  min-height: 27px !important;
+}
+
+/* Régua compacta em uma linha */
+.pampatto-status-ruler {
+  --status-progress: 0%;
+  position: relative !important;
+  display: grid !important;
+  grid-template-columns: repeat(4,minmax(90px,1fr)) !important;
+  align-items: start !important;
+  width: min(680px,100%) !important;
+  margin: 18px auto 20px !important;
+  padding: 0 8px !important;
+  overflow: visible !important;
+}
+
+.status-ruler-line {
+  position: absolute !important;
+  z-index: 0 !important;
+  top: 14px !important;
+  left: calc(12.5% + 8px) !important;
+  right: calc(12.5% + 8px) !important;
+  height: 3px !important;
+  border-radius: 999px !important;
+  background: #3c3930 !important;
+  overflow: hidden !important;
+}
+
+.status-ruler-line > span {
+  display: block !important;
+  width: var(--status-progress) !important;
+  height: 100% !important;
+  background: linear-gradient(90deg,#d89a18,#ffd45c) !important;
+  transition: width .25s ease !important;
+}
+
+.status-ruler-step {
+  position: relative !important;
+  z-index: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  min-width: 0 !important;
+  text-align: center !important;
+}
+
+.status-ruler-circle {
+  display: grid !important;
+  place-items: center !important;
+  width: 30px !important;
+  height: 30px !important;
+  border-radius: 50% !important;
+  border: 2px solid #575248 !important;
+  background: #17150f !important;
+  color: #9b968a !important;
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  box-sizing: border-box !important;
+}
+
+.status-ruler-label {
+  display: block !important;
+  margin-top: 7px !important;
+  max-width: 112px !important;
+  color: #888278 !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  line-height: 1.1 !important;
+  white-space: nowrap !important;
+}
+
+.status-ruler-step.completed .status-ruler-circle {
+  background: #765204 !important;
+  border-color: #e1a31d !important;
+  color: #fff0b1 !important;
+  box-shadow: 0 0 0 4px rgba(225,163,29,.13) !important;
+}
+
+.status-ruler-step.current .status-ruler-label {
+  color: #ffd45c !important;
+  font-weight: 900 !important;
+}
+
+/* Verde quando concluído */
+.order-card.order-completed {
+  border-color: #3ca65e !important;
+  box-shadow: inset 4px 0 0 #3ca65e,0 0 16px rgba(60,166,94,.13) !important;
+}
+
+.order-completed .status-ruler-line > span {
+  background: #3ca65e !important;
+}
+
+.order-completed .status-ruler-step.completed .status-ruler-circle {
+  background: #1d6b37 !important;
+  border-color: #4bc873 !important;
+  color: #e1ffe8 !important;
+}
+
+.order-completed .status-ruler-step.current .status-ruler-label {
+  color: #79e499 !important;
+}
+
+/* Controles do administrador */
+.order-admin-status {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+  margin-top: 14px !important;
+}
+
+.order-admin-status label {
+  color: #ead99d !important;
+}
+
+.order-admin-status select {
+  min-height: 42px !important;
+  min-width: 170px !important;
+  padding: 0 10px !important;
+  border: 1px solid #806115 !important;
+  border-radius: 8px !important;
+  background: #151107 !important;
+  color: #ffd967 !important;
+}
+
+.status-save-button {
+  min-height: 42px !important;
+}
+
+/* Tags */
+#ordersContent .tag,
+#acompanharListaConteudo .tag {
+  background: rgba(218,159,26,.17) !important;
+  border: 1px solid #8d6815 !important;
+  color: #ffd45c !important;
+}
+
+#ordersContent .status-completed,
+#acompanharListaConteudo .status-completed {
+  background: rgba(60,166,94,.16) !important;
+  border-color: #3ca65e !important;
+  color: #79e499 !important;
+}
+
+/* Botão PDF */
+.list-pdf-btn {
+  background: #151107 !important;
+  border-color: #856416 !important;
+  color: #ffd45c !important;
+}
+
+/* Força os cartões escuros */
+#ordersContent .order-card,
+#acompanharListaConteudo .order-card {
+  background: linear-gradient(180deg,#100f0b,#0b0a07) !important;
+  border: 1px solid #72550c !important;
+}
+
+/* Compatibilidade: esconde a régua antiga caso tenha permanecido */
+.status-track {
+  display: none !important;
+}
+
+@media (max-width: 620px) {
+  .pampatto-status-ruler {
+    grid-template-columns: repeat(4,minmax(82px,1fr)) !important;
+    overflow-x: auto !important;
+  }
+  .status-ruler-label {
+    font-size: 10px !important;
+  }
+}
