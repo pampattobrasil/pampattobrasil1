@@ -107,7 +107,10 @@ async function loadOrders(){
        </div>
        ${timeline(normalizedStatus)}
        <div class="order-items">${(o.catalogo_pedido_itens||[]).sort((a,b)=>Number(a.ordem||0)-Number(b.ordem||0)).map(i=>`<div><span>${i.quantidade}× ${esc(i.produto_nome)}</span><strong>${money(i.subtotal??(Number(i.quantidade||0)*Number(i.valor_unitario||0)))}</strong></div>`).join('')}</div>
+       <div class="order-card-actions">
        ${u.perfil==='admin'?`<div class="order-admin-status"><label>Alterar status</label><select data-status>${Object.entries(STATUS).map(([k,v])=>`<option value="${k}" ${normalizedStatus===k?'selected':''}>${v}</option>`).join('')}</select><button class="btn status-save-button" type="button" data-save-status>Salvar status</button></div>`:''}
+       <button class="outline-btn order-delete-button" type="button" data-delete-order>Excluir pedido</button>
+     </div>
      </article>`;
    }).join(''):'<div class="shopping-empty muted">Nenhum pedido encontrado.</div>'}</div>
  </div>`;
@@ -130,6 +133,32 @@ async function saveStatus(card,btn){
 ${error.message}`);
  await loadOrders();
 }
+
+async function deleteOrder(card,btn){
+ const u=user();
+ const numero=card.querySelector('.order-number')?.textContent?.trim()||'este pedido';
+ if(!confirm(`Excluir ${numero}?\n\nO número utilizado não será reutilizado.`))return;
+
+ const original=btn.textContent;
+ btn.disabled=true;
+ btn.textContent='Excluindo...';
+
+ const {error}=await db().rpc('pampatto_excluir_pedido_v11',{
+   p_pedido_id:card.dataset.orderId,
+   p_usuario:String(u.id||u.usuario||'')
+ });
+
+ btn.disabled=false;
+ btn.textContent=original;
+
+ if(error){
+   return alert(`Não foi possível excluir o pedido.\n\n${error.message}`);
+ }
+
+ await loadOrders();
+ document.dispatchEvent(new CustomEvent('pampatto:data-ready'));
+}
+
 
 function focusNextListRow(current){
  const rows=[...document.querySelectorAll('#listaComprasItens .shopping-list-item')];
@@ -280,7 +309,10 @@ function bind(){
  $('clearCartBtn')?.addEventListener('click',clearCart);
  $('finishCartBtn')?.addEventListener('click',finish);
  $('ordersContent')?.addEventListener('click',e=>{
-   if(e.target.matches('[data-save-status]'))saveStatus(e.target.closest('.order-card'),e.target)
+   const card=e.target.closest('.order-card');
+   if(!card)return;
+   if(e.target.matches('[data-save-status]'))saveStatus(card,e.target);
+   if(e.target.matches('[data-delete-order]'))deleteOrder(card,e.target);
  });
  $('closeOrderSuccessModal')?.addEventListener('click',()=>{
    const m=$('orderSuccessModal');
