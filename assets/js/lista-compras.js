@@ -81,13 +81,14 @@ async function loadOrders(){
  if(!u||!target)return;
  let q=db().from('catalogo_pedidos')
    .select('id,numero_pedido,sequencial,cliente_identificador,cliente_nome,status,valor_total,created_at,catalogo_pedido_itens(id,produto_nome,quantidade,valor_unitario,subtotal,ordem)')
-   .order('created_at',{ascending:false});
- if(u.perfil!=='admin')q=q.eq('cliente_identificador',u.id).limit(5);
+   .order('created_at',{ascending:false})
+   .limit(5);
+ if(u.perfil!=='admin')q=q.eq('cliente_identificador',u.id);
  const {data,error}=await q;
  if(error){target.innerHTML=`<div class="notice error">${esc(error.message)}</div>`;return}
  state.orders=data||[];
  target.innerHTML=`<div class="panel">
-   <div class="panel-head"><div><h3>${u.perfil==='admin'?'Pedidos':'Meus últimos pedidos'}</h3><p class="muted">${u.perfil==='admin'?'Todos os pedidos salvos no banco.':'Os cinco pedidos mais recentes ficam sempre disponíveis aqui.'}</p></div><button class="outline-btn" id="refreshOrdersBtn">Atualizar</button></div>
+   <div class="panel-head"><div><h3>${u.perfil==='admin'?'Pedidos':'Meus últimos pedidos'}</h3><p class="muted">Os cinco pedidos mais recentes ficam disponíveis nesta tela. O histórico completo permanece salvo nos relatórios.</p></div><button class="outline-btn" id="refreshOrdersBtn">Atualizar</button></div>
    <div class="orders-list">${state.orders.length?state.orders.map(o=>{
      const normalizedStatus=normalizeOrderStatus(o.status);const completed=normalizedStatus==='concluido';
      return `<article class="order-card ${completed?'order-completed':''}" data-order-id="${o.id}">
