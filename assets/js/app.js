@@ -11,7 +11,7 @@ const sameId=(a,b)=>String(a??'')===String(b??'');
 const state={produtos:[],usuarios:[],pedidos:[],currentUser:null,filtroTipo:'Todos',busy:false};
 window.PAMPATTO_STATE=state;
 
-const categoryIcons={'Carnes Bovinas':'♉','Carnes Suínas':'♘','Carnes de Frango':'♞','Miúdos de Frango':'♞','Embutidos':'▣','Industrializados':'▤','Peixes':'♓'};
+const categoryIcons={'Carnes Bovinas':'🥩','Carnes Suínas':'🐖','Carnes de Frango':'🍗','Miúdos de Frango':'🫀','Embutidos':'🌭','Industrializados':'🥫','Peixes':'🐟'};
 const cats=['Todos',...Object.keys(categoryIcons)];
 const PRODUCT_IMAGE_MAP={
  'acem':'acem.jpg','almondegas':'almondegas.jpg','almondegas 29':'almondegas-29.jpg',
@@ -111,9 +111,11 @@ function productCard(p){
  const nome=String(p.nome||p.produto_nome||p.titulo||p.descricao||'Produto sem nome').trim();
  const imagem=resolveProductImage(p);
  const fallback='assets/images/logo.jpg';
+ const vendidoPorKg=!normalizeText(nome).includes('hamburguer');
  return `<article class="product-card" data-product-id="${esc(p.id)}" data-product-name-value="${esc(nome)}">
    <img src="${esc(imagem||fallback)}" alt="${esc(nome)}" onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='${fallback}'}">
    <h4 class="product-name" data-product-name title="${esc(nome)}" style="display:block!important;visibility:visible!important;opacity:1!important;color:#fff3c4!important;font-size:14px!important;line-height:1.25!important;margin:10px 8px 6px!important;min-height:35px!important;position:relative!important;z-index:2!important;">${esc(nome)}</h4>
+   ${vendidoPorKg?'<div class="product-unit-badge" title="Valor por quilograma">KG</div>':''}
    <div class="product-meta"><div class="price">${money(p.valor)}</div></div>
    <div class="catalog-quantity-controls"><div class="catalog-stepper"><button type="button" data-q="minus">−</button><input type="number" min="1" max="999" value="1"><button type="button" data-q="plus">+</button></div><button type="button" class="btn" data-q="add">Incluir</button></div>
  </article>`
@@ -305,6 +307,21 @@ async function deleteUser(id){if(!confirm('Excluir este usuário?'))return;const
 
 function bind(){
  document.querySelectorAll('.nav button[data-tab]').forEach(btn=>btn.addEventListener('click',()=>openTab(btn.dataset.tab)));
+ const ordersMetric=$('metricOrders')?.closest('.metric');
+ if(ordersMetric){
+   ordersMetric.classList.add('metric-link');
+   ordersMetric.setAttribute('role','button');
+   ordersMetric.setAttribute('tabindex','0');
+   ordersMetric.setAttribute('aria-label','Abrir menu de pedidos');
+   ordersMetric.title='Abrir pedidos';
+   ordersMetric.addEventListener('click',()=>openTab('pedidos'));
+   ordersMetric.addEventListener('keydown',e=>{
+     if(e.key==='Enter'||e.key===' '){
+       e.preventDefault();
+       openTab('pedidos');
+     }
+   });
+ }
  document.querySelectorAll('[data-new-product]').forEach(b=>b.addEventListener('click',()=>openTab('estoque')));
  $('loginForm')?.addEventListener('submit',async e=>{e.preventDefault();if(state.busy)return;state.busy=true;hideError();setLoading(true,'ENTRANDO...');try{await login($('login').value.trim().toLowerCase(),$('senha').value);await refreshAll();$('loginPage').style.display='none';$('appPage').style.display='block';openTab('dashboard')}catch(err){showError(err.message||'Não foi possível entrar.')}finally{state.busy=false;setLoading(false)}});
  $('toggleSenha')?.addEventListener('click',()=>{$('senha').type=$('senha').type==='password'?'text':'password'});
