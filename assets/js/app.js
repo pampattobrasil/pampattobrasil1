@@ -59,7 +59,17 @@ async function loadOrderMetrics(){
 }
 
 function catButtons(){return `<div class="category-buttons">${cats.map(c=>`<button class="cat-btn ${state.filtroTipo===c?'active':''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>`}
-function productCard(p){const nome=String(p.nome||'Produto sem nome').trim();return `<article class="product-card" data-product-id="${esc(p.id)}" data-product-name-value="${esc(nome)}"><img src="${esc(p.imagem_url||'assets/images/logo.jpg')}" alt="${esc(nome)}"><h4 class="product-name" data-product-name title="${esc(nome)}">${esc(nome)}</h4><div class="product-meta"><div class="price">${money(p.valor)}</div></div><div class="catalog-quantity-controls"><div class="catalog-stepper"><button type="button" data-q="minus">−</button><input type="number" min="1" max="999" value="1"><button type="button" data-q="plus">+</button></div><button type="button" class="btn" data-q="add">Incluir</button></div></article>`}
+function productCard(p){
+ const nome=String(p.nome||p.produto_nome||p.titulo||p.descricao||'Produto sem nome').trim();
+ const imagem=String(p.imagem_url||p.imagem||p.foto_url||p.foto||'').trim();
+ const fallback='assets/images/logo.jpg';
+ return `<article class="product-card" data-product-id="${esc(p.id)}" data-product-name-value="${esc(nome)}">
+   <img src="${esc(imagem||fallback)}" alt="${esc(nome)}" onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='${fallback}'}">
+   <h4 class="product-name" data-product-name title="${esc(nome)}" style="display:block!important;visibility:visible!important;opacity:1!important;color:#fff3c4!important;font-size:14px!important;line-height:1.25!important;margin:10px 8px 6px!important;min-height:35px!important;position:relative!important;z-index:2!important;">${esc(nome)}</h4>
+   <div class="product-meta"><div class="price">${money(p.valor)}</div></div>
+   <div class="catalog-quantity-controls"><div class="catalog-stepper"><button type="button" data-q="minus">−</button><input type="number" min="1" max="999" value="1"><button type="button" data-q="plus">+</button></div><button type="button" class="btn" data-q="add">Incluir</button></div>
+ </article>`
+}
 function renderProductArea(id){
  const root=$(id);if(!root)return;const input=id==='dashProducts'?$('buscaDash'):$('buscaProdutos');const termo=(input?.value||'').trim().toLowerCase();const base=state.produtos.filter(p=>(state.filtroTipo==='Todos'||p.tipo===state.filtroTipo)&&`${p.nome} ${p.tipo}`.toLowerCase().includes(termo));let html=catButtons();const groups=state.filtroTipo==='Todos'?Object.keys(categoryIcons):[state.filtroTipo];for(const cat of groups){const items=base.filter(p=>p.tipo===cat);if(items.length)html+=`<section class="product-section"><div class="section-title"><span>${categoryIcons[cat]||'•'}</span>${esc(cat)}</div><div class="product-grid">${items.map(productCard).join('')}</div></section>`}root.innerHTML=html||'<div class="empty">Nenhum produto encontrado.</div>';
 }
@@ -76,7 +86,16 @@ function applyPermissions(){document.querySelectorAll('.admin-only').forEach(el=
 function renderReports(){
  const target=$('reportsContent');if(!target||!isAdmin())return;const month=new Date().toISOString().slice(0,7);target.innerHTML=`<div class="panel"><div class="panel-head"><div><h3>Relatórios</h3><p class="muted">Dados atualizados diretamente do Supabase.</p></div></div><div class="metrics"><div class="metric"><div><span class="muted">PEDIDOS NO MÊS</span><div class="big">${state.pedidos.filter(p=>String(p.created_at).slice(0,7)===month).length}</div></div></div><div class="metric"><div><span class="muted">VENDAS NO MÊS</span><div class="big small">${money(state.pedidos.filter(p=>String(p.created_at).slice(0,7)===month).reduce((s,p)=>s+Number(p.valor_total||0),0))}</div></div></div></div></div>`;
 }
-function renderAll(){applyPermissions();renderProductArea('dashProducts');renderProductArea('produtosView');renderStock();renderUsers();renderMetrics();renderReports();document.dispatchEvent(new CustomEvent('pampatto:data-ready'))}
+function ensureProductNamesVisible(){
+ document.querySelectorAll('.product-card .product-name,[data-product-name]').forEach(el=>{
+   el.style.setProperty('display','block','important');
+   el.style.setProperty('visibility','visible','important');
+   el.style.setProperty('opacity','1','important');
+   el.style.setProperty('color','#fff3c4','important');
+   el.style.setProperty('min-height','35px','important');
+ });
+}
+function renderAll(){applyPermissions();renderProductArea('dashProducts');renderProductArea('produtosView');ensureProductNamesVisible();renderStock();renderUsers();renderMetrics();renderReports();document.dispatchEvent(new CustomEvent('pampatto:data-ready'))}
 async function refreshAll(){await Promise.all([loadProducts(),loadUsers(),loadOrderMetrics()]);renderAll()}
 
 function openTab(tab){if(['estoque','empresa','relatorios','acompanhar-lista'].includes(tab)&&!isAdmin())return;document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));$('tab-'+tab)?.classList.add('active');document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));document.querySelector(`[data-tab="${tab}"]`)?.classList.add('active');document.dispatchEvent(new CustomEvent('pampatto:tab',{detail:{tab}}))}
