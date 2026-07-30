@@ -417,6 +417,24 @@ async function deleteUser(id){
  renderUsers();
  alert('Cliente arquivado e acesso bloqueado com sucesso.');
 }
+function stopRealtime(){
+ if(state.realtimeTimer){
+   clearTimeout(state.realtimeTimer);
+   state.realtimeTimer=null;
+ }
+
+ const client=db();
+ if(state.realtimeChannel&&client){
+   try{
+     client.removeChannel(state.realtimeChannel);
+   }catch(err){
+     console.warn('Não foi possível encerrar o canal Realtime:',err);
+   }
+ }
+
+ state.realtimeChannel=null;
+}
+
 function scheduleRealtimeRefresh(){
  if(state.realtimeTimer)clearTimeout(state.realtimeTimer);
  state.realtimeTimer=setTimeout(async()=>{
