@@ -167,7 +167,7 @@ function renderUsers(){
        ${u.usuario==='teste'
          ?'<span class="muted">Acesso principal</span>'
          :`<button class="mini-btn" data-toggle-user="${u.id}">${u.ativo?'Desativar':'Ativar'}</button>
-           <button class="mini-btn danger" data-delete-user="${u.id}">Excluir</button>`}
+           <button class="mini-btn danger" data-delete-user="${u.id}">Arquivar</button>`}
      </td>
    </tr>`).join('');
 }
@@ -396,15 +396,26 @@ async function resetUserPassword(id){
 }
 
 async function toggleUser(id){const u=state.usuarios.find(x=>sameId(x.id,id));if(!u)return;const {error}=await requireDb().from('usuarios').update({ativo:!u.ativo}).eq('id',id);if(error)return alert(error.message);await loadUsers();renderUsers()}
-async function deleteUser(id){if(!confirm('Excluir este usuário?'))return;const {error}=await requireDb().from('usuarios').delete().eq('id',id);if(error)return alert(error.message);await loadUsers();renderUsers()}
+async function deleteUser(id){
+ const usuario=state.usuarios.find(u=>sameId(u.id,id));
+ if(!usuario)return;
 
+ const confirmar=confirm(
+   `Arquivar o cliente ${usuario.nome}?\n\n`+
+   `O acesso será bloqueado, mas pedidos, listas e logs permanecerão salvos no banco.`
+ );
+ if(!confirmar)return;
 
-function stopRealtime(){
- if(state.realtimeTimer){clearTimeout(state.realtimeTimer);state.realtimeTimer=null}
- if(state.realtimeChannel&&db()){
-   db().removeChannel(state.realtimeChannel);
-   state.realtimeChannel=null;
- }
+ const {error}=await requireDb().rpc('pampatto_arquivar_cliente_v17',{
+   p_admin:String(state.currentUser.id||state.currentUser.usuario),
+   p_usuario_id:id
+ });
+
+ if(error)return alert(`Não foi possível arquivar o cliente.\n\n${error.message}`);
+
+ await loadUsers();
+ renderUsers();
+ alert('Cliente arquivado e acesso bloqueado com sucesso.');
 }
 function scheduleRealtimeRefresh(){
  if(state.realtimeTimer)clearTimeout(state.realtimeTimer);
