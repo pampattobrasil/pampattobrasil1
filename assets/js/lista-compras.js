@@ -4,7 +4,8 @@ if(window.__PAMPATTO_LISTA__)return;window.__PAMPATTO_LISTA__=true;
 const $=id=>document.getElementById(id),db=()=>window.pampattoSupabase||window.supabaseClient||null;
 const esc=(v='')=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-const STATUS={pedido_realizado:'Pedido realizado',em_separacao:'Em separação',separado:'Separado',entregue:'Concluído',concluido:'Concluído'};
+const STATUS={pedido_realizado:'Pedido realizado',em_separacao:'Em separação',separado:'Separado',concluido:'Concluído'};
+const LIST_STATUS={enviada:'Lista enviada',em_compra:'Em compra',comprada:'Compra realizada',concluida:'Concluída'};
 const state={cart:[],orders:[],lists:[],channels:[],bound:false};
 const user=()=>window.PAMPATTO_CURRENT_USER||window.currentUser||null;
 function notice(msg,error=false){const el=$('cartNotice');if(el){el.className=error?'notice error':'notice';el.textContent=msg}}
@@ -46,7 +47,19 @@ async function finish(){
    if(btn){btn.disabled=false;btn.textContent=originalText}
  }
 }
-function timeline(status){status=status||'pedido_realizado';const keys=Object.keys(STATUS),n=Math.max(0,keys.indexOf(status));return `<div class="order-timeline">${keys.map((k,i)=>`<div class="order-stage ${i<=n?'done':''} ${i===n?'current':''}"><span>${i+1}</span><small>${STATUS[k]}</small></div>`).join('')}</div>`}
+function normalizeOrderStatus(status){
+ if(status==='entregue')return 'concluido';
+ return STATUS[status]?status:'pedido_realizado';
+}
+function timeline(status,labels=STATUS){
+ const keys=Object.keys(labels),normalized=status==='entregue'?'concluido':status;
+ const n=Math.max(0,keys.indexOf(normalized));
+ return `<div class="status-track">${keys.map((k,i)=>`
+   <div class="status-step ${i<=n?'is-done':''} ${i===n?'is-current':''}">
+     <span class="status-dot">${i<n?'✓':i+1}</span>
+     <small>${labels[k]}</small>
+   </div>`).join('')}</div>`;
+}
 async function loadOrders(){
  const u=user(),target=$('ordersContent');
  if(!u||!target)return;
@@ -60,7 +73,7 @@ async function loadOrders(){
  target.innerHTML=`<div class="panel">
    <div class="panel-head"><div><h3>${u.perfil==='admin'?'Pedidos':'Meus últimos pedidos'}</h3><p class="muted">${u.perfil==='admin'?'Todos os pedidos salvos no banco.':'Os cinco pedidos mais recentes ficam sempre disponíveis aqui.'}</p></div><button class="outline-btn" id="refreshOrdersBtn">Atualizar</button></div>
    <div class="orders-list">${state.orders.length?state.orders.map(o=>{
-     const completed=['entregue','concluido'].includes(o.status);
+     const normalizedStatus=normalizeOrderStatus(o.status);const completed=normalizedStatus==='concluido';
      return `<article class="order-card ${completed?'order-completed':''}" data-order-id="${o.id}">
        <div class="order-card-head">
          <div>
@@ -72,22 +85,200 @@ async function loadOrders(){
          </div>
          <div class="order-value-status">
            <strong>${money(o.valor_total)}</strong>
-           <div><span class="tag ${completed?'status-completed':''}">${esc(STATUS[o.status]||o.status||'Pedido realizado')}</span></div>
+           <div><span class="tag ${completed?'status-completed':''}">${esc(STATUS[normalizedStatus]||'Pedido realizado')}</span></div>
          </div>
        </div>
-       ${timeline(o.status)}
+       ${timeline(normalizedStatus)}
        <div class="order-items">${(o.catalogo_pedido_itens||[]).sort((a,b)=>Number(a.ordem||0)-Number(b.ordem||0)).map(i=>`<div><span>${i.quantidade}× ${esc(i.produto_nome)}</span><strong>${money(i.subtotal??(Number(i.quantidade||0)*Number(i.valor_unitario||0)))}</strong></div>`).join('')}</div>
-       ${u.perfil==='admin'?`<div class="order-admin-status"><label>Alterar status</label><select data-status>${Object.entries(STATUS).map(([k,v])=>`<option value="${k}" ${o.status===k?'selected':''}>${v}</option>`).join('')}</select><button class="btn" data-save-status>Salvar status</button></div>`:''}
+       ${u.perfil==='admin'?`<div class="order-admin-status"><label>Alterar status</label><select data-status>${Object.entries(STATUS).map(([k,v])=>`<option value="${k}" ${normalizedStatus===k?'selected':''}>${v}</option>`).join('')}</select><button class="btn" data-save-status>Salvar status</button></div>`:''}
      </article>`;
    }).join(''):'<div class="shopping-empty muted">Nenhum pedido encontrado.</div>'}</div>
  </div>`;
  $('refreshOrdersBtn')?.addEventListener('click',loadOrders);
 }
-async function saveStatus(card,btn){btn.disabled=true;const {error}=await db().rpc('atualizar_status_pedido',{p_pedido_id:card.dataset.orderId,p_novo_status:card.querySelector('[data-status]').value});btn.disabled=false;if(error)return alert(error.message);await loadOrders()}
+async function saveStatus(card,btn){
+ btn.disabled=true;
+ const novoStatus=card.querySelector('[data-status]').value;
+ const {error}=await db().from('catalogo_pedidos').update({status:novoStatus}).eq('id',card.dataset.orderId);
+ btn.disabled=false;
+ if(error)return alert(error.message);
+ await loadOrders();
+}
 
-function addListRow(nome='',quantidade=1){const box=$('listaComprasItens');if(!box)return;const row=document.createElement('div');row.className='shopping-list-item';row.innerHTML=`<input data-list-name placeholder="Produto" value="${esc(nome)}" required><select data-list-qty>${Array.from({length:10},(_,i)=>`<option value="${i+1}" ${i+1===quantidade?'selected':''}>${i+1}</option>`).join('')}</select><button type="button" class="outline-btn danger-outline" data-remove-list>Remover</button>`;box.appendChild(row)}
-async function saveList(e){e.preventDefault();const u=user();const items=[...document.querySelectorAll('#listaComprasItens .shopping-list-item')].map(r=>({nome:r.querySelector('[data-list-name]').value.trim(),quantidade:Number(r.querySelector('[data-list-qty]').value)})).filter(i=>i.nome);if(!items.length)return alert('Adicione pelo menos um item.');const {data,error}=await db().from('listas_compras').insert({cliente_identificador:u.id,cliente_nome:u.nome,status:'enviada'}).select('id').single();if(error)return alert(error.message);const {error:itemError}=await db().from('lista_compras_itens').insert(items.map((i,n)=>({lista_id:data.id,produto_nome:i.nome,quantidade:i.quantidade,ordem:n+1})));if(itemError)return alert(itemError.message);$('listaComprasItens').innerHTML='';addListRow();alert('Lista salva com sucesso.');await loadLists()}
-async function loadLists(){const u=user(),target=$('acompanharListaConteudo');if(!u||!target)return;let q=db().from('listas_compras').select('id,cliente_nome,status,created_at,lista_compras_itens(id,produto_nome,quantidade,ordem)').order('created_at',{ascending:false});if(u.perfil!=='admin')q=q.eq('cliente_identificador',u.id);const {data,error}=await q;if(error){target.innerHTML=`<div class="notice error">${esc(error.message)}</div>`;return}state.lists=data||[];target.innerHTML=state.lists.length?state.lists.map(l=>`<article class="order-card"><div class="order-card-head"><div><strong>Lista de ${esc(l.cliente_nome)}</strong><div class="shopping-list-meta">${new Date(l.created_at).toLocaleString('pt-BR')}</div></div><span class="tag">${esc(l.status)}</span></div><div class="order-items">${(l.lista_compras_itens||[]).sort((a,b)=>a.ordem-b.ordem).map(i=>`<div><span>${i.quantidade}× ${esc(i.produto_nome)}</span></div>`).join('')}</div></article>`).join(''):'<div class="shopping-empty muted">Nenhuma lista encontrada.</div>'}
-function bind(){if(state.bound)return;state.bound=true;document.addEventListener('pampatto:add-cart',e=>addCart(e.detail.produtoId,e.detail.quantidade));document.addEventListener('pampatto:data-ready',()=>{loadCart();loadOrders();loadLists()});document.addEventListener('pampatto:tab',e=>{if(e.detail.tab==='carrinho')loadCart();if(e.detail.tab==='pedidos')loadOrders();if(e.detail.tab==='acompanhar-lista')loadLists()});$('cartView')?.addEventListener('click',e=>{const row=e.target.closest('.cart-item-row');if(!row)return;const item=state.cart.find(i=>String(i.id)===row.dataset.id);if(!item)return;const a=e.target.dataset.action;if(a==='minus')changeItem(item.id,Number(item.quantidade)-1);if(a==='plus')changeItem(item.id,Number(item.quantidade)+1);if(a==='remove')changeItem(item.id,0)});$('cartView')?.addEventListener('change',e=>{if(e.target.matches('input[type=number]'))changeItem(e.target.closest('.cart-item-row').dataset.id,e.target.value)});$('clearCartBtn')?.addEventListener('click',clearCart);$('finishCartBtn')?.addEventListener('click',finish);$('ordersContent')?.addEventListener('click',e=>{if(e.target.matches('[data-save-status]'))saveStatus(e.target.closest('.order-card'),e.target)});$('closeOrderSuccessModal')?.addEventListener('click',()=>{const m=$('orderSuccessModal');if(m){m.classList.remove('open');m.style.setProperty('display','none','important');m.setAttribute('aria-hidden','true')}window.openTab?.('pedidos')});$('adicionarItemLista')?.addEventListener('click',()=>addListRow());$('listaComprasItens')?.addEventListener('click',e=>{if(e.target.matches('[data-remove-list]'))e.target.closest('.shopping-list-item').remove()});$('listaComprasForm')?.addEventListener('submit',saveList);$('cancelarListaCompras')?.addEventListener('click',()=>{$('listaComprasItens').innerHTML='';addListRow()});$('atualizarListas')?.addEventListener('click',loadLists);addListRow()}
+function focusNextListRow(current){
+ const rows=[...document.querySelectorAll('#listaComprasItens .shopping-list-item')];
+ const row=current.closest('.shopping-list-item');
+ const index=rows.indexOf(row);
+ if(index===rows.length-1)addListRow();
+ const updated=[...document.querySelectorAll('#listaComprasItens .shopping-list-item')];
+ updated[index+1]?.querySelector('[data-list-name]')?.focus();
+}
+function refreshListRemoveButtons(){
+ const rows=[...document.querySelectorAll('#listaComprasItens .shopping-list-item')];
+ rows.forEach((row,index)=>{
+   const btn=row.querySelector('[data-remove-list]');
+   if(btn)btn.style.visibility=rows.length>1||index>0?'visible':'hidden';
+ });
+}
+function addListRow(nome='',quantidade=1){
+ const box=$('listaComprasItens');if(!box)return;
+ const row=document.createElement('div');
+ row.className='shopping-list-item';
+ row.innerHTML=`
+   <input data-list-name placeholder="Digite o produto" value="${esc(nome)}" required>
+   <select data-list-qty aria-label="Quantidade">${Array.from({length:10},(_,i)=>`<option value="${i+1}" ${i+1===quantidade?'selected':''}>${i+1}</option>`).join('')}</select>
+   <button type="button" class="list-remove-x" data-remove-list aria-label="Excluir item" title="Excluir item">×</button>`;
+ box.appendChild(row);
+ refreshListRemoveButtons();
+}
+async function saveList(e){
+ e.preventDefault();
+ const u=user();
+ const items=[...document.querySelectorAll('#listaComprasItens .shopping-list-item')]
+   .map((r,index)=>({
+     produto_nome:r.querySelector('[data-list-name]').value.trim(),
+     quantidade:Number(r.querySelector('[data-list-qty]').value),
+     ordem:index+1
+   })).filter(i=>i.produto_nome);
+ if(!items.length)return alert('Adicione pelo menos um item.');
+ const {data,error}=await db().rpc('pampatto_salvar_lista_v7',{
+   p_cliente:String(u.id||u.usuario||''),
+   p_cliente_nome:String(u.nome||u.usuario||'Cliente'),
+   p_itens:items
+ });
+ if(error)return alert(error.message);
+ const result=Array.isArray(data)?data[0]:data;
+ $('listaComprasItens').innerHTML='';
+ addListRow();
+ alert(`Lista nº ${result?.numero_lista||''} salva com sucesso.`);
+ await loadLists();
+}
+function listPdf(lista){
+ const jsPDFCtor=window.jspdf?.jsPDF;
+ if(!jsPDFCtor)return alert('O gerador de PDF não foi carregado.');
+ const doc=new jsPDFCtor({unit:'mm',format:'a4'});
+ doc.setFontSize(16);
+ doc.text('Empório Pampatto Brasil - Lista de Compras',14,16);
+ doc.setFontSize(10);
+ doc.text(`Lista nº: ${lista.numero_lista||'—'}`,14,24);
+ doc.text(`Cliente: ${lista.cliente_nome||'Cliente'}`,14,30);
+ doc.text(`Data e hora: ${new Date(lista.created_at).toLocaleString('pt-BR')}`,14,36);
+ doc.text(`Status: ${LIST_STATUS[lista.status]||lista.status}`,14,42);
+ const rows=(lista.lista_compras_itens||[])
+   .sort((a,b)=>Number(a.ordem||0)-Number(b.ordem||0))
+   .map(i=>[String(i.quantidade||1),i.produto_nome||'Produto']);
+ doc.autoTable({
+   startY:49,
+   head:[['Quantidade','Produto']],
+   body:rows,
+   headStyles:{fillColor:[35,30,12],textColor:[245,190,55]},
+   styles:{fontSize:10}
+ });
+ doc.save(`lista-${lista.numero_lista||lista.id}.pdf`);
+}
+async function saveListStatus(card,btn){
+ btn.disabled=true;
+ const status=card.querySelector('[data-list-status]').value;
+ const {error}=await db().rpc('pampatto_atualizar_status_lista_v7',{
+   p_lista_id:card.dataset.listId,
+   p_status:status
+ });
+ btn.disabled=false;
+ if(error)return alert(error.message);
+ await loadLists();
+}
+async function loadLists(){
+ const u=user(),target=$('acompanharListaConteudo');
+ if(!u||!target)return;
+ let q=db().from('listas_compras')
+   .select('id,numero_lista,sequencial,cliente_identificador,cliente_nome,status,created_at,updated_at,lista_compras_itens(id,produto_nome,quantidade,ordem)')
+   .order('created_at',{ascending:false});
+ if(u.perfil!=='admin')q=q.eq('cliente_identificador',u.id).limit(5);
+ const {data,error}=await q;
+ if(error){target.innerHTML=`<div class="notice error">${esc(error.message)}</div>`;return}
+ state.lists=data||[];
+ target.innerHTML=state.lists.length?state.lists.map(l=>{
+   const status=LIST_STATUS[l.status]?l.status:'enviada';
+   const completed=status==='concluida';
+   return `<article class="order-card list-card ${completed?'order-completed':''}" data-list-id="${l.id}">
+     <div class="order-card-head">
+       <div>
+         <strong class="order-number">Lista nº ${esc(l.numero_lista||l.sequencial||'—')}</strong>
+         <div class="shopping-list-meta">
+           <span>Cliente: <strong>${esc(l.cliente_nome||'Cliente')}</strong></span>
+           <span>${new Date(l.created_at).toLocaleString('pt-BR')}</span>
+         </div>
+       </div>
+       <div class="list-card-actions">
+         <span class="tag ${completed?'status-completed':''}">${esc(LIST_STATUS[status])}</span>
+         <button class="outline-btn list-pdf-btn" type="button" data-list-pdf>Exportar PDF</button>
+       </div>
+     </div>
+     ${timeline(status,LIST_STATUS)}
+     <div class="order-items list-yellow">${(l.lista_compras_itens||[]).sort((a,b)=>Number(a.ordem||0)-Number(b.ordem||0)).map(i=>`
+       <div><span>${i.quantidade}× ${esc(i.produto_nome)}</span></div>`).join('')}</div>
+     ${u.perfil==='admin'?`<div class="order-admin-status">
+       <label>Alterar status</label>
+       <select data-list-status>${Object.entries(LIST_STATUS).map(([k,v])=>`<option value="${k}" ${status===k?'selected':''}>${v}</option>`).join('')}</select>
+       <button class="btn" type="button" data-save-list-status>Salvar status</button>
+     </div>`:''}
+   </article>`;
+ }).join(''):'<div class="shopping-empty muted">Nenhuma lista encontrada.</div>';
+}
+function bind(){
+ if(state.bound)return;state.bound=true;
+ document.addEventListener('pampatto:add-cart',e=>addCart(e.detail.produtoId,e.detail.quantidade));
+ document.addEventListener('pampatto:data-ready',()=>{loadCart();loadOrders();loadLists()});
+ document.addEventListener('pampatto:tab',e=>{
+   if(e.detail.tab==='carrinho')loadCart();
+   if(e.detail.tab==='pedidos')loadOrders();
+   if(e.detail.tab==='acompanhar-lista')loadLists();
+ });
+ $('cartView')?.addEventListener('click',e=>{
+   const row=e.target.closest('.cart-item-row');if(!row)return;
+   const item=state.cart.find(i=>String(i.id)===row.dataset.id);if(!item)return;
+   const a=e.target.dataset.action;
+   if(a==='minus')changeItem(item.id,Number(item.quantidade)-1);
+   if(a==='plus')changeItem(item.id,Number(item.quantidade)+1);
+   if(a==='remove')changeItem(item.id,0);
+ });
+ $('cartView')?.addEventListener('change',e=>{
+   if(e.target.matches('input[type=number]'))changeItem(e.target.closest('.cart-item-row').dataset.id,e.target.value)
+ });
+ $('clearCartBtn')?.addEventListener('click',clearCart);
+ $('finishCartBtn')?.addEventListener('click',finish);
+ $('ordersContent')?.addEventListener('click',e=>{
+   if(e.target.matches('[data-save-status]'))saveStatus(e.target.closest('.order-card'),e.target)
+ });
+ $('closeOrderSuccessModal')?.addEventListener('click',()=>{
+   const m=$('orderSuccessModal');
+   if(m){m.classList.remove('open');m.style.setProperty('display','none','important');m.setAttribute('aria-hidden','true')}
+   window.openTab?.('pedidos')
+ });
+ $('adicionarItemLista')?.addEventListener('click',()=>{addListRow();document.querySelector('#listaComprasItens .shopping-list-item:last-child [data-list-name]')?.focus()});
+ $('listaComprasItens')?.addEventListener('keydown',e=>{
+   if(e.key==='Enter'&&e.target.matches('[data-list-name]')){
+     e.preventDefault();
+     focusNextListRow(e.target);
+   }
+ });
+ $('listaComprasItens')?.addEventListener('click',e=>{
+   if(e.target.matches('[data-remove-list]')){
+     e.target.closest('.shopping-list-item').remove();
+     if(!$('listaComprasItens').children.length)addListRow();
+     refreshListRemoveButtons();
+   }
+ });
+ $('listaComprasForm')?.addEventListener('submit',saveList);
+ $('cancelarListaCompras')?.addEventListener('click',()=>{$('listaComprasItens').innerHTML='';addListRow()});
+ $('atualizarListas')?.addEventListener('click',loadLists);
+ $('acompanharListaConteudo')?.addEventListener('click',e=>{
+   const card=e.target.closest('[data-list-id]');if(!card)return;
+   const item=state.lists.find(l=>String(l.id)===String(card.dataset.listId));
+   if(e.target.matches('[data-list-pdf]')&&item)listPdf(item);
+   if(e.target.matches('[data-save-list-status]'))saveListStatus(card,e.target);
+ });
+ addListRow();
+}
 document.readyState==='loading'?document.addEventListener('DOMContentLoaded',bind):bind();
 })();
