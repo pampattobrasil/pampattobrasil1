@@ -4,7 +4,7 @@ if(window.__PAMPATTO_LISTA__)return;window.__PAMPATTO_LISTA__=true;
 const $=id=>document.getElementById(id),db=()=>window.pampattoSupabase||window.supabaseClient||null;
 const esc=(v='')=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-const STATUS={pedido_realizado:'Pedido realizado',em_separacao:'Em separação',separado:'Separado',concluido:'Concluído'};
+const STATUS={pedido_realizado:'Pedido realizado',em_separacao:'Em separação',separado:'Separado',concluido:'Concluído',cancelado:'Cancelado'};
 const LIST_STATUS={enviada:'Lista enviada',em_compra:'Em compra',comprada:'Compra realizada',concluida:'Concluída'};
 const state={cart:[],orders:[],lists:[],channels:[],bound:false};
 const user=()=>window.PAMPATTO_CURRENT_USER||window.currentUser||null;
@@ -60,6 +60,7 @@ function formatExistingNumber(dateValue,sequencial,prefix=''){
 
 function normalizeOrderStatus(status){
  if(status==='entregue')return 'concluido';
+ if(status==='cancelado')return 'cancelado';
  return STATUS[status]?status:'pedido_realizado';
 }
 function timeline(status,labels=STATUS){
@@ -76,22 +77,39 @@ function timeline(status,labels=STATUS){
      </div>`).join('')}
  </div>`;
 }
-async function loadOrders(){
+async function loadOrders(filter=state.orderFilter||'ativos'){
  const u=user(),target=$('ordersContent');
  if(!u||!target)return;
+ state.orderFilter=filter;
  let q=db().from('catalogo_pedidos')
    .select('id,numero_pedido,sequencial,cliente_identificador,cliente_nome,status,valor_total,created_at,catalogo_pedido_itens(id,produto_nome,quantidade,valor_unitario,subtotal,ordem)')
    .order('created_at',{ascending:false})
    .limit(5);
+
  if(u.perfil!=='admin')q=q.eq('cliente_identificador',u.id);
+ q=filter==='cancelados'?q.eq('status','cancelado'):q.neq('status','cancelado');
+
  const {data,error}=await q;
  if(error){target.innerHTML=`<div class="notice error">${esc(error.message)}</div>`;return}
  state.orders=data||[];
+
  target.innerHTML=`<div class="panel">
-   <div class="panel-head"><div><h3>${u.perfil==='admin'?'Pedidos':'Meus últimos pedidos'}</h3><p class="muted">Os cinco pedidos mais recentes ficam disponíveis nesta tela. O histórico completo permanece salvo nos relatórios.</p></div><button class="outline-btn" id="refreshOrdersBtn">Atualizar</button></div>
+   <div class="panel-head">
+     <div>
+       <h3>${u.perfil==='admin'?'Pedidos':'Meus últimos pedidos'}</h3>
+       <p class="muted">Os cinco pedidos mais recentes deste filtro ficam disponíveis. O histórico completo permanece nos relatórios.</p>
+     </div>
+     <div class="orders-filter-actions">
+       <button class="outline-btn ${filter==='ativos'?'active':''}" type="button" data-order-filter="ativos">Pedidos ativos</button>
+       <button class="outline-btn cancelled-filter ${filter==='cancelados'?'active':''}" type="button" data-order-filter="cancelados">Pedidos cancelados</button>
+       <button class="outline-btn" id="refreshOrdersBtn">Atualizar</button>
+     </div>
+   </div>
    <div class="orders-list">${state.orders.length?state.orders.map(o=>{
-     const normalizedStatus=normalizeOrderStatus(o.status);const completed=normalizedStatus==='concluido';
-     return `<article class="order-card ${completed?'order-completed':''}" data-order-id="${o.id}">
+     const normalizedStatus=normalizeOrderStatus(o.status);
+     const completed=normalizedStatus==='concluido';
+     const cancelled=normalizedStatus==='cancelado';
+     return `<article class="order-card ${completed?'order-completed':''} ${cancelled?'order-cancelled':''}" data-order-id="${o.id}">
        <div class="order-card-head">
          <div>
            <strong class="order-number">Pedido nº ${esc(o.numero_pedido||formatExistingNumber(o.created_at,o.sequencial))}</strong>
@@ -102,19 +120,21 @@ async function loadOrders(){
          </div>
          <div class="order-value-status">
            <strong>${money(o.valor_total)}</strong>
-           <div><span class="tag ${completed?'status-completed':''}">${esc(STATUS[normalizedStatus]||'Pedido realizado')}</span></div>
+           <div><span class="tag ${completed?'status-completed':cancelled?'status-cancelled':''}">${esc(STATUS[normalizedStatus]||'Pedido realizado')}</span></div>
          </div>
        </div>
-       ${timeline(normalizedStatus)}
+       ${cancelled?'':timeline(normalizedStatus)}
        <div class="order-items">${(o.catalogo_pedido_itens||[]).sort((a,b)=>Number(a.ordem||0)-Number(b.ordem||0)).map(i=>`<div><span>${i.quantidade}× ${esc(i.produto_nome)}</span><strong>${money(i.subtotal??(Number(i.quantidade||0)*Number(i.valor_unitario||0)))}</strong></div>`).join('')}</div>
-       <div class="order-card-actions">
-       ${u.perfil==='admin'?`<div class="order-admin-status"><label>Alterar status</label><select data-status>${Object.entries(STATUS).map(([k,v])=>`<option value="${k}" ${normalizedStatus===k?'selected':''}>${v}</option>`).join('')}</select><button class="btn status-save-button" type="button" data-save-status>Salvar status</button></div>`:''}
-       <button class="outline-btn order-delete-button" type="button" data-delete-order>Excluir pedido</button>
-     </div>
+       ${cancelled?'':`<div class="order-card-actions">
+         ${u.perfil==='admin'?`<div class="order-admin-status"><label>Alterar status</label><select data-status>${Object.entries(STATUS).filter(([k])=>k!=='cancelado').map(([k,v])=>`<option value="${k}" ${normalizedStatus===k?'selected':''}>${v}</option>`).join('')}</select><button class="btn status-save-button" type="button" data-save-status>Salvar status</button></div>`:''}
+         <button class="outline-btn order-delete-button" type="button" data-delete-order>Cancelar pedido</button>
+       </div>`}
      </article>`;
-   }).join(''):'<div class="shopping-empty muted">Nenhum pedido encontrado.</div>'}</div>
+   }).join(''):'<div class="shopping-empty muted">Nenhum pedido encontrado neste filtro.</div>'}</div>
  </div>`;
- $('refreshOrdersBtn')?.addEventListener('click',loadOrders);
+
+ target.querySelectorAll('[data-order-filter]').forEach(btn=>btn.addEventListener('click',()=>loadOrders(btn.dataset.orderFilter)));
+ $('refreshOrdersBtn')?.addEventListener('click',()=>loadOrders(state.orderFilter));
 }
 async function saveStatus(card,btn){
  const novoStatus=card.querySelector('[data-status]')?.value;
@@ -137,13 +157,15 @@ ${error.message}`);
 async function deleteOrder(card,btn){
  const u=user();
  const numero=card.querySelector('.order-number')?.textContent?.trim()||'este pedido';
- if(!confirm(`Excluir ${numero}?\n\nO número utilizado não será reutilizado.`))return;
+ if(!confirm(`Cancelar ${numero}?
+
+O pedido ficará salvo no histórico e o número nunca será reutilizado.`))return;
 
  const original=btn.textContent;
  btn.disabled=true;
- btn.textContent='Excluindo...';
+ btn.textContent='Cancelando...';
 
- const {error}=await db().rpc('pampatto_excluir_pedido_v11',{
+ const {error}=await db().rpc('pampatto_cancelar_pedido_v13',{
    p_pedido_id:card.dataset.orderId,
    p_usuario:String(u.id||u.usuario||'')
  });
@@ -151,12 +173,12 @@ async function deleteOrder(card,btn){
  btn.disabled=false;
  btn.textContent=original;
 
- if(error){
-   return alert(`Não foi possível excluir o pedido.\n\n${error.message}`);
- }
+ if(error)return alert(`Não foi possível cancelar o pedido.
 
- await loadOrders();
- document.dispatchEvent(new CustomEvent('pampatto:data-ready'));
+${error.message}`);
+
+ await loadOrders('ativos');
+ await window.PAMPATTO_REFRESH_ALL?.();
 }
 
 
@@ -289,7 +311,8 @@ async function loadLists(){
 function bind(){
  if(state.bound)return;state.bound=true;
  document.addEventListener('pampatto:add-cart',e=>addCart(e.detail.produtoId,e.detail.quantidade));
- document.addEventListener('pampatto:data-ready',()=>{loadCart();loadOrders();loadLists()});
+ document.addEventListener('pampatto:data-ready',()=>{loadCart();loadOrders(state.orderFilter||'ativos');loadLists()});
+ document.addEventListener('pampatto:orders-realtime',()=>loadOrders(state.orderFilter||'ativos'));
  document.addEventListener('pampatto:tab',e=>{
    if(e.detail.tab==='carrinho')loadCart();
    if(e.detail.tab==='pedidos')loadOrders();
