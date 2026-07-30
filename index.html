@@ -4,10 +4,11 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Empório Pampatto Brasil | Gestão</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🥩</text></svg>">
 
-  <link rel="stylesheet" href="assets/css/styles.css?v=20260729.02">
-  <link rel="stylesheet" href="assets/css/lista-compras.css?v=20260729.02">
-  <link rel="stylesheet" href="assets/css/styles-login-modal-fix.css?v=20260729.02">
+  <link rel="stylesheet" href="assets/css/styles.css?v=20260730-5">
+  <link rel="stylesheet" href="assets/css/lista-compras.css?v=20260730-5">
+  <link rel="stylesheet" href="assets/css/styles-login-modal-fix.css?v=20260730-5">
 </head>
 <body>
 <div class="bg"><span class="twinkle"></span><span class="twinkle two"></span></div>
@@ -48,7 +49,7 @@
       </section>
       <section id="tab-produtos" class="tab"><div class="panel"><div class="panel-head"><div><h3>Produtos</h3><p class="muted">Catálogo de produtos</p></div><div class="tools"><div class="search"><input id="buscaProdutos" placeholder="Buscar produto..."></div><button class="btn admin-only" data-new-product>＋ Novo Produto</button></div></div><div id="produtosView"></div></div></section>
       <section id="tab-carrinho" class="tab"><div class="panel"><div class="panel-head"><div><h3>Carrinho</h3><p class="muted">Confira os produtos e valores antes de fazer o pedido.</p></div><div class="tools"><button class="outline-btn danger-outline" id="clearCartBtn">Cancelar pedido</button><button class="btn" id="finishCartBtn">Finalizar pedido</button></div></div><div id="cartNotice"></div><div id="cartView"></div></div></section>
-      <section id="tab-estoque" class="tab"><div class="panel"><div class="panel-head"><div><h3 id="stockFormTitle">Cadastrar produto</h3><p class="muted">Cadastre imagem, estoque e valor de venda.</p></div><div class="tools"><button class="outline-btn" id="exportBtn">Exportar backup</button><button class="outline-btn" id="importBtn">Importar backup</button><input type="file" class="hidden-file" id="importFile" accept="application/json"></div></div><form id="stockForm" class="grid"><input type="hidden" id="produtoId"><input id="nome" placeholder="Nome interno do produto"><input id="fabricante" placeholder="Fornecedor / fabricante"><input id="quantidade" type="number" min="0" step="0.01" placeholder="Quantidade"><input id="valor" type="number" min="0" step="0.01" placeholder="Valor unitário (R$)"><select id="tipo"><option>Carnes Bovinas</option><option>Carnes Suínas</option><option>Carnes de Frango</option><option>Miúdos de Frango</option><option>Embutidos</option><option>Industrializados</option><option>Peixes</option></select><input id="validade" type="date"><input id="imagem" type="file" accept="image/*"><button class="btn save" type="submit">Salvar produto</button><button class="outline-btn save" id="cancelProductEdit" type="button" style="display:none">Cancelar edição</button></form></div><div class="panel"><div class="panel-head"><div><h3>Lista de estoque</h3><p class="muted">Controle de quantidade e valor.</p></div><div class="search"><input id="busca" placeholder="Buscar no estoque..."></div></div><div class="table-wrap"><table><thead><tr><th>Foto</th><th>Produto</th><th>Categoria</th><th>Valor</th><th>Estoque</th><th>Status</th><th>Ações</th></tr></thead><tbody id="tbody"></tbody></table></div></div></section>
+      <section id="tab-estoque" class="tab"><div class="panel"><div class="panel-head"><div><h3 id="stockFormTitle">Cadastrar produto</h3><p class="muted">Cadastre imagem, estoque e valor de venda.</p></div><div class="tools"><button class="outline-btn" id="exportBtn">Exportar backup</button><button class="outline-btn" id="importBtn">Importar backup</button><input type="file" class="hidden-file" id="importFile" accept="application/json"></div></div><form id="stockForm" class="grid"><input type="hidden" id="produtoId"><input id="nome" placeholder="Nome interno do produto"><input id="fabricante" placeholder="Fornecedor / fabricante"><input id="quantidade" type="number" min="0" step="0.01" placeholder="Quantidade"><input id="valor" type="number" min="0" step="0.01" placeholder="Valor unitário (R$)"><select id="tipo"><option>Carnes Bovinas</option><option>Carnes Suínas</option><option>Carnes de Frango</option><option>Miúdos de Frango</option><option>Embutidos</option><option>Industrializados</option><option>Peixes</option></select><input id="validade" type="date"><input id="imagem" type="file" accept="image/*"><button class="btn save" type="submit">Salvar produto</button><button class="outline-btn save" id="cancelProductEdit" type="button" style="display:none">Cancelar edição</button></form></div><div class="panel"><div class="panel-head"><div><h3>Lista de estoque</h3><p class="muted">Controle de quantidade e valor.</p></div><div class="search"><input id="busca" placeholder="Buscar no estoque..."></div></div><div class="table-wrap"><table><thead><tr><th>Foto</th><th>Produto</th><th>Categoria</th><th>Valor</th><th>Ações</th></tr></thead><tbody id="tbody"></tbody></table></div></div></section>
       <section id="tab-pedidos" class="tab"><div id="ordersContent"></div></section>
       <section id="tab-lista-compras" class="tab">
         <div class="panel">
@@ -101,8 +102,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="assets/js/supabase-config.js?v=20260729-12" defer></script>
-<script src="assets/js/app.js?v=20260729-12" defer></script>
-<script src="assets/js/lista-compras.js?v=20260729-12" defer></script>
+<script src="assets/js/supabase-config.js?v=20260730-5" defer></script>
+<script src="assets/js/app.js?v=20260730-5" defer></script>
+<script src="assets/js/lista-compras.js?v=20260730-5" defer></script>
 </body></html>
- 
