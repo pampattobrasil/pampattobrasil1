@@ -77,3 +77,20 @@ body{font-family:Arial;padding:28px;color:#111}h1{margin-bottom:4px}table{width:
   overflow: visible !important;
 }
 .product-card .product-meta { padding-top: 2px !important; }
+
+/* Pampatto: nomes dos produtos sempre visíveis */
+.product-card .product-name,
+.product-card [data-product-name] {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  min-height: 36px !important;
+  margin: 10px 8px 6px !important;
+  color: #fff3c4 !important;
+  line-height: 1.25 !important;
+}
+
+/* A lista de estoque não exibe contador nem coluna de esgotado/status. */
+#tab-estoque #tbody .stock-edit {
+  width: 110px;
+}
