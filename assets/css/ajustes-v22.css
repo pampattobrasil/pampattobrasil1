@@ -1,0 +1,59 @@
+/* PAMPATTO V22 — Controle individual de visualização de preços */
+.price-visibility-switch{
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:8px!important;
+  margin:0!important;
+  cursor:pointer!important;
+  user-select:none!important;
+  white-space:nowrap!important;
+}
+.price-visibility-switch input{
+  position:absolute!important;
+  opacity:0!important;
+  pointer-events:none!important;
+}
+.price-visibility-slider{
+  position:relative!important;
+  display:inline-block!important;
+  width:42px!important;
+  height:22px!important;
+  flex:0 0 42px!important;
+  border:1px solid rgba(216,166,50,.45)!important;
+  border-radius:999px!important;
+  background:#211d14!important;
+  transition:.2s ease!important;
+}
+.price-visibility-slider::after{
+  content:""!important;
+  position:absolute!important;
+  width:16px!important;
+  height:16px!important;
+  top:2px!important;
+  left:3px!important;
+  border-radius:50%!important;
+  background:#8d8370!important;
+  transition:.2s ease!important;
+}
+.price-visibility-switch input:checked + .price-visibility-slider{
+  background:rgba(216,166,50,.25)!important;
+  border-color:#d8a632!important;
+}
+.price-visibility-switch input:checked + .price-visibility-slider::after{
+  transform:translateX(18px)!important;
+  background:#f1c86a!important;
+}
+.price-visibility-text,
+.price-visibility-admin{
+  color:#f4c44d!important;
+  font-size:12px!important;
+  font-weight:800!important;
+}
+.price-hidden-label{
+  color:var(--muted)!important;
+  font-size:12px!important;
+  font-weight:700!important;
+}
+.price-hidden-total{
+  justify-content:flex-end!important;
+}
