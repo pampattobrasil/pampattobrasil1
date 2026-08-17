@@ -71,8 +71,6 @@ function withTimeout(promise,ms,label='Operação'){
 
 async function login(usuario,senha){
  const client=requireDb();
-
- // Somente a autenticação é obrigatória para liberar o acesso.
  const {data,error}=await withTimeout(
    client.rpc('autenticar_usuario',{p_usuario:usuario,p_senha:senha}),
    12000,
@@ -83,14 +81,10 @@ async function login(usuario,senha){
  const user=Array.isArray(data)?data[0]:data;
  if(!user)throw new Error('Usuário ou senha inválidos.');
 
- // A preferência de preços é complementar: se o banco estiver lento,
- // o login continua normalmente com o padrão "exibir preços".
  let mostrarPrecos=true;
  try{
    const pref=await withTimeout(
-     client.rpc('pampatto_obter_visualizacao_precos_v22',{
-       p_usuario:String(user.id||user.usuario)
-     }),
+     client.rpc('pampatto_obter_visualizacao_precos_v22',{p_usuario:String(user.id||user.usuario)}),
      4000,
      'Preferência de visualização'
    );
@@ -99,18 +93,9 @@ async function login(usuario,senha){
    console.warn('[Pampatto] Preferência de preços indisponível no login:',err);
  }
 
- state.currentUser={
-   id:user.id,
-   nome:user.nome,
-   cnpj:user.cnpj||'',
-   usuario:user.usuario,
-   perfil:user.perfil,
-   ativo:user.ativo,
-   mostrar_precos:mostrarPrecos
- };
+ state.currentUser={id:user.id,nome:user.nome,cnpj:user.cnpj||'',usuario:user.usuario,perfil:user.perfil,ativo:user.ativo,mostrar_precos:mostrarPrecos};
  exposeUser();
 
- // Log não deve bloquear o acesso do usuário.
  client.rpc('pampatto_registrar_log_v13',{
    p_usuario:String(user.id||user.usuario),
    p_evento:'login'
@@ -123,13 +108,7 @@ async function restoreSession(){
 }
 
 async function loadProducts(){
- // Evita SELECT * e reduz dados desnecessários na consulta.
- // O limite protege o login contra leituras acidentais muito grandes.
- const {data,error}=await requireDb()
-   .from('produtos')
-   .select('id,nome,fabricante,quantidade,valor,tipo,validade,imagem_url,ativo,updated_at')
-   .eq('ativo',true)
-   .limit(500);
+ const {data,error}=await requireDb().from('produtos').select('*').eq('ativo',true);
  if(error)throw error;
  const normalized=(data||[]).map((p,index)=>{
    const item={
@@ -429,42 +408,8 @@ function ensureProductNamesVisible(){
  });
 }
 function renderAll(){applyPermissions();renderProductArea('dashProducts');renderProductArea('produtosView');ensureProductNamesVisible();renderStock();renderUsers();renderMetrics();renderReports();renderLogs();document.dispatchEvent(new CustomEvent('pampatto:data-ready'))}
-async function refreshAll(){
- await Promise.all([loadProducts(),loadUsers(),loadOrderMetrics(),loadLogs()]);
- renderAll();
-}
+async function refreshAll(){await Promise.all([loadProducts(),loadUsers(),loadOrderMetrics(),loadLogs()]);renderAll()}
 window.PAMPATTO_REFRESH_ALL=refreshAll;
-
-async function refreshAfterLogin(){
- // O usuário já foi autenticado. Falhas de consultas secundárias não devem
- // devolvê-lo para a tela de login.
- const tasks=[
-   ['produtos',loadProducts],
-   ['usuários',loadUsers],
-   ['pedidos',loadOrderMetrics],
-   ['logs',loadLogs]
- ];
-
- const results=await Promise.allSettled(
-   tasks.map(([nome,fn])=>withTimeout(Promise.resolve().then(fn),12000,`Carregamento de ${nome}`))
- );
-
- const failures=[];
- results.forEach((result,index)=>{
-   if(result.status==='rejected'){
-     const [nome]=tasks[index];
-     failures.push(`${nome}: ${result.reason?.message||result.reason}`);
-     console.error(`[Pampatto] Falha ao carregar ${nome}:`,result.reason);
-   }
- });
-
- renderAll();
-
- if(failures.length){
-   console.warn('[Pampatto] Login concluído com carregamento parcial:',failures);
- }
- return failures;
-}
 
 function openTab(tab){if(['estoque','empresa','relatorios','logs','acompanhar-lista'].includes(tab)&&!isAdmin())return;document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));$('tab-'+tab)?.classList.add('active');document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));document.querySelector(`[data-tab="${tab}"]`)?.classList.add('active');document.dispatchEvent(new CustomEvent('pampatto:tab',{detail:{tab}}))}
 window.openTab=openTab;
@@ -589,45 +534,44 @@ function bind(){
  }
  document.querySelectorAll('[data-new-product]').forEach(b=>b.addEventListener('click',()=>openTab('estoque')));
  $('loginForm')?.addEventListener('submit',async e=>{
-   e.preventDefault();
-   if(state.busy)return;
-   state.busy=true;
-   hideError();
-   setLoading(true,'ENTRANDO...');
+ e.preventDefault();
+ if(state.busy)return;
+ state.busy=true;
+ hideError();
+ setLoading(true,'ENTRANDO...');
+ try{
+   await login($('login').value.trim().toLowerCase(),$('senha').value);
+   $('loginPage').style.display='none';
+   $('appPage').style.display='block';
+   openTab('dashboard');
+
    try{
-     await login($('login').value.trim().toLowerCase(),$('senha').value);
-
-     // Libera a interface imediatamente após autenticar.
-     $('loginPage').style.display='none';
-     $('appPage').style.display='block';
-     openTab('dashboard');
-
-     const failures=await refreshAfterLogin();
-     startRealtime();
-
-     if(failures.length){
-       console.warn('[Pampatto] Alguns dados não carregaram agora. O acesso foi mantido.',failures);
-     }
-   }catch(err){
-     console.error('[Pampatto] Erro de login:',err);
-     const message=String(err?.message||'Não foi possível entrar.');
-     if(/statement timeout|excedeu o tempo|timeout/i.test(message)){
-       showError('O banco demorou para responder. Tente entrar novamente em alguns segundos.');
-     }else{
-       showError(message);
-     }
-   }finally{
-     state.busy=false;
-     setLoading(false);
+     await refreshAll();
+   }catch(loadErr){
+     console.error('[Pampatto] Erro ao carregar dados após login:',loadErr);
    }
- });
+
+   startRealtime();
+ }catch(err){
+   console.error('[Pampatto] Erro de login:',err);
+   const message=String(err?.message||'Não foi possível entrar.');
+   if(/statement timeout|excedeu o tempo|timeout/i.test(message)){
+     showError('O banco demorou para responder. Tente entrar novamente em alguns segundos.');
+   }else{
+     showError(message);
+   }
+ }finally{
+   state.busy=false;
+   setLoading(false);
+ }
+});
  $('toggleSenha')?.addEventListener('click',()=>{$('senha').type=$('senha').type==='password'?'text':'password'});
  $('senha')?.addEventListener('keyup',e=>{
-   const caps=$('capsAlert');
-   if(!caps)return;
-   const isCaps=typeof e?.getModifierState==='function' ? e.getModifierState('CapsLock') : false;
-   caps.style.display=isCaps?'block':'none';
- });
+ const caps=$('capsAlert');
+ if(!caps)return;
+ const isCaps=typeof e?.getModifierState==='function' ? e.getModifierState('CapsLock') : false;
+ caps.style.display=isCaps?'block':'none';
+});
  $('logoutBtn')?.addEventListener('click',async()=>{
    const atual=state.currentUser;
    if(atual){
