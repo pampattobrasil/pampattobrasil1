@@ -159,7 +159,7 @@ function productCard(p){
  const vendidoPorKg=!normalizeText(nome).includes('hamburguer');
  const mostrarPreco=canSeePrices();
  return `<article class="product-card" data-product-id="${esc(p.id)}" data-product-name-value="${esc(nome)}">
-   <img src="${esc(imagem||fallback)}" alt="${esc(nome)}" onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='${fallback}'}">
+   <img src="${esc(imagem||fallback)}" alt="${esc(nome)}" loading="lazy" decoding="async" onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='${fallback}'}">
    <h4 class="product-name" data-product-name title="${esc(nome)}" style="display:block!important;visibility:visible!important;opacity:1!important;color:#fff3c4!important;font-size:14px!important;line-height:1.25!important;margin:10px 8px 6px!important;min-height:35px!important;position:relative!important;z-index:2!important;">${esc(nome)}</h4>
    ${vendidoPorKg?'<div class="product-unit-badge" title="Valor por quilograma">KG</div>':''}
    <div class="product-meta"><div class="price">${mostrarPreco?money(p.valor):'<span class="price-hidden-label">Preço não exibido</span>'}</div></div>
@@ -246,6 +246,125 @@ function reportStatusLabel(status){
    cancelado:'Cancelado'
  })[status]||status||'Pedido realizado';
 }
+
+const BLING_PEDIDO_HEADERS=[
+ 'Número pedido','Nome Comprador','Data','CPF/CNPJ Comprador','Endereço Comprador','Bairro Comprador',
+ 'Número Comprador','Complemento Comprador','CEP Comprador','Cidade Comprador','UF Comprador',
+ 'Telefone Comprador','Celular Comprador','E-mail Comprador','Produto','SKU','Un','Quantidade',
+ 'Valor Unitário','Valor Total','Total Pedido','Valor Frete Pedido','Valor Desconto Pedido','Outras despesas',
+ 'Nome Entrega','Endereço Entrega','Número Entrega','Complemento Entrega','Cidade Entrega','UF Entrega',
+ 'CEP Entrega','Bairro Entrega','Transportadora','Serviço','Tipo Frete','Observações','Qtd Parcela',
+ 'Data Prevista','Vendedor','Forma Pagamento','ID Forma Pagamento'
+];
+
+// Produtos identificados no relatório do Bling enviado em 17/08/2026.
+// Quando um novo SKU for cadastrado no Bling, basta acrescentar aqui.
+const BLING_PRODUCT_MAP={
+ 'patinho em cubo':{sku:'1155',un:'KG',nome:'PATINHO EM CUBO'},
+ 'patinho em cubos':{sku:'1155',un:'KG',nome:'PATINHO EM CUBO'},
+ 'frango em cubos':{sku:'1154',un:'KG',nome:'FRANGO EM CUBOS'}
+};
+
+function blingProductInfo(nome=''){
+ const key=normalizeText(nome);
+ const exact=BLING_PRODUCT_MAP[key];
+ if(exact)return exact;
+
+ // Mantém o nome real do pedido quando não existe código confirmado
+ // na relação do Bling fornecida. Não inventa SKU.
+ const isUn=/hamburguer/i.test(nome)&&/36\s*un/i.test(nome);
+ return {sku:'',un:isUn?'UN':'KG',nome:String(nome||'Produto').trim()};
+}
+
+function csvCell(value){
+ const s=String(value??'');
+ return /[",\r\n]/.test(s)?`"${s.replace(/"/g,'""')}"`:s;
+}
+function brDecimal(value){
+ const n=Number(value||0);
+ return Number.isFinite(n)?n.toFixed(2).replace('.',','):'0,00';
+}
+function brDate(value){
+ const d=new Date(value);
+ if(Number.isNaN(d.getTime()))return '';
+ return d.toLocaleDateString('pt-BR');
+}
+function findOrderBuyer(order){
+ return state.usuarios.find(u=>sameId(u.id,order.cliente_identificador))
+   ||state.usuarios.find(u=>normalizeText(u.nome)===normalizeText(order.cliente_nome))
+   ||null;
+}
+function downloadCsv(filename,rows){
+ const text='\uFEFF'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n');
+ const url=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8;'}));
+ const a=document.createElement('a');
+ a.href=url;
+ a.download=filename;
+ document.body.appendChild(a);
+ a.click();
+ a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function exportOrderBling(orderId){
+ const order=state.pedidos.find(p=>sameId(p.id,orderId));
+ if(!order)return alert('Pedido não encontrado.');
+
+ const itens=(order.catalogo_pedido_itens||[])
+   .slice()
+   .sort((a,b)=>Number(a.ordem||0)-Number(b.ordem||0));
+
+ if(!itens.length)return alert('Este pedido não possui itens para exportação.');
+
+ const buyer=findOrderBuyer(order);
+ const numero=order.numero_pedido||order.sequencial||order.id||'pedido';
+ const totalPedido=Number(order.valor_total||itens.reduce((s,i)=>s+Number(i.subtotal??(Number(i.quantidade||0)*Number(i.valor_unitario||0))),0));
+ const semSku=[];
+
+ const rows=[BLING_PEDIDO_HEADERS];
+
+ itens.forEach(i=>{
+   const info=blingProductInfo(i.produto_nome);
+   if(!info.sku)semSku.push(i.produto_nome);
+
+   const qtd=Number(i.quantidade||0);
+   const unit=Number(i.valor_unitario||0);
+   const totalItem=Number(i.subtotal??(qtd*unit));
+
+   rows.push([
+     numero,
+     order.cliente_nome||buyer?.nome||'Cliente',
+     brDate(order.created_at),
+     buyer?.cnpj||'',
+     '', '', '', '', '', '', '', '', '', '',
+     info.nome,
+     info.sku,
+     info.un,
+     String(qtd).replace('.',','),
+     brDecimal(unit),
+     brDecimal(totalItem),
+     brDecimal(totalPedido),
+     '0,00','0,00','0,00',
+     order.cliente_nome||buyer?.nome||'Cliente',
+     '', '', '', '', '', '', '', '', '',
+     'R',
+     `Pedido ${numero} - Empório Pampatto Brasil`,
+     '0',
+     '',
+     '',
+     '',
+     ''
+   ]);
+ });
+
+ const safe=String(numero).replace(/[^a-z0-9_-]+/gi,'-');
+ downloadCsv(`bling-pedido-${safe}.csv`,rows);
+
+ if(semSku.length){
+   const nomes=[...new Set(semSku)].join(', ');
+   setTimeout(()=>alert(`Planilha exportada. Atenção: os seguintes produtos ainda não possuem SKU confirmado na lista do Bling enviada: ${nomes}. Eles foram exportados com o nome do produto e SKU em branco.`),150);
+ }
+}
+
 function renderReportResults(){
  const target=$('reportResults');
  if(!target)return;
@@ -258,7 +377,7 @@ function renderReportResults(){
  target.innerHTML=pedidos.length?`
    <div class="table-wrap report-table-wrap">
      <table class="report-table">
-       <thead><tr><th>Pedido</th><th>Data</th><th>Cliente</th><th>Status</th><th>Itens</th><th>Total</th></tr></thead>
+       <thead><tr><th>Pedido</th><th>Data</th><th>Cliente</th><th>Status</th><th>Itens</th><th>Total</th><th>Ações</th></tr></thead>
        <tbody>${pedidos.map(p=>`
          <tr>
            <td><strong>${esc(p.numero_pedido||'—')}</strong></td>
@@ -267,8 +386,9 @@ function renderReportResults(){
            <td><span class="tag ${['entregue','concluido'].includes(p.status)?'status-completed':p.status==='cancelado'?'status-cancelled':''}">${esc(reportStatusLabel(p.status))}</span></td>
            <td>${(p.catalogo_pedido_itens||[]).reduce((s,i)=>s+Number(i.quantidade||0),0)}</td>
            <td><strong>${money(p.valor_total)}</strong></td>
+           <td><button type="button" class="mini-btn" data-export-bling="${esc(p.id)}">Exportar Nota</button></td>
          </tr>
-         <tr class="report-items-row"><td colspan="6">
+         <tr class="report-items-row"><td colspan="7">
            <div class="report-products">${(p.catalogo_pedido_itens||[]).sort((a,b)=>Number(a.ordem||0)-Number(b.ordem||0)).map(i=>`
              <span>${Number(i.quantidade||0)}× ${esc(i.produto_nome)} — ${money(i.subtotal??(Number(i.quantidade||0)*Number(i.valor_unitario||0)))}</span>
            `).join('')}</div>
@@ -335,7 +455,7 @@ function renderReports(){
  state.pedidos.forEach(p=>clientesMap.set(String(p.cliente_identificador||p.cliente_nome||''),p.cliente_nome||'Cliente'));
  target.innerHTML=`
  <div class="panel">
-   <div class="panel-head"><div><h3>Relatórios de pedidos</h3><p class="muted">Filtre os pedidos salvos no Supabase e exporte os resultados em PDF.</p></div></div>
+   <div class="panel-head"><div><h3>Relatórios de pedidos</h3><p class="muted">Filtre os pedidos, exporte o relatório em PDF ou use “Exportar Nota” em cada pedido para gerar o arquivo de importação do Bling.</p></div></div>
    <div class="report-status-buttons">
      <button type="button" class="outline-btn report-status-btn active" data-report-status="todos">Todos os pedidos</button>
      <button type="button" class="outline-btn report-status-btn" data-report-status="ativos">Pedidos ativos</button>
@@ -365,6 +485,10 @@ function renderReports(){
  $('exportReportPdf')?.addEventListener('click',exportReportPdf);
  ['reportMes','reportAno','reportCliente'].forEach(id=>$(id)?.addEventListener('change',renderReportResults));
  $('reportNumero')?.addEventListener('input',renderReportResults);
+ $('reportResults')?.addEventListener('click',e=>{
+   const btn=e.target.closest('[data-export-bling]');
+   if(btn)exportOrderBling(btn.dataset.exportBling);
+ });
  renderReportResults();
 }
 
@@ -406,7 +530,7 @@ function renderAll(){applyPermissions();renderProductArea('dashProducts');render
 async function refreshAll(){await Promise.all([loadProducts(),loadUsers(),loadOrderMetrics(),loadLogs()]);renderAll()}
 window.PAMPATTO_REFRESH_ALL=refreshAll;
 
-function openTab(tab){if(['estoque','empresa','relatorios','logs','acompanhar-lista'].includes(tab)&&!isAdmin())return;document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));$('tab-'+tab)?.classList.add('active');document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));document.querySelector(`[data-tab="${tab}"]`)?.classList.add('active');document.dispatchEvent(new CustomEvent('pampatto:tab',{detail:{tab}}))}
+function openTab(tab){if(['estoque','empresa','relatorios','logs','acompanhar-lista'].includes(tab)&&!isAdmin())return;document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));$('tab-'+tab)?.classList.add('active');document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));document.querySelector(`[data-tab="${tab}"]`)?.classList.add('active');if(tab==='dashboard')renderProductArea('dashProducts');if(tab==='produtos')renderProductArea('produtosView');document.dispatchEvent(new CustomEvent('pampatto:tab',{detail:{tab}}))}
 window.openTab=openTab;
 
 async function saveStock(id){const valor=Number($('stock-price-'+id)?.value);if(!Number.isFinite(valor)||valor<0)return alert('Informe um valor válido.');const {error}=await requireDb().from('produtos').update({valor,updated_at:new Date().toISOString()}).eq('id',id);if(error)return alert(error.message);await loadProducts();renderAll()}
@@ -570,8 +694,8 @@ function catalogClick(e){
  const categoryButton=e.target.closest('[data-cat]');
  if(categoryButton){
    state.filtroTipo=categoryButton.dataset.cat||'Todos';
-   renderProductArea('dashProducts');
-   renderProductArea('produtosView');
+   const currentArea=e.currentTarget?.id;
+   if(currentArea)renderProductArea(currentArea);
    return;
  }
 
