@@ -62,58 +62,21 @@ function setLoading(active,text='Aguarde...'){
 }
 function requireDb(){const client=db();if(!client)throw new Error('Supabase não foi carregado. Verifique o arquivo supabase-config.js.');return client}
 
-function withTimeout(promise,ms,label='Operação'){
- return Promise.race([
-   promise,
-   new Promise((_,reject)=>setTimeout(()=>reject(new Error(`${label} excedeu o tempo de resposta.`)),ms))
- ]);
-}
-
 async function login(usuario,senha){
  const client=requireDb();
-
- const {data,error}=await withTimeout(
-   client.rpc('autenticar_usuario',{p_usuario:usuario,p_senha:senha}),
-   12000,
-   'Autenticação'
- );
+ const {data,error}=await client.rpc('autenticar_usuario',{p_usuario:usuario,p_senha:senha});
  if(error)throw error;
-
  const user=Array.isArray(data)?data[0]:data;
  if(!user)throw new Error('Usuário ou senha inválidos.');
-
  let mostrarPrecos=true;
- try{
-   const pref=await withTimeout(
-     client.rpc('pampatto_obter_visualizacao_precos_v22',{
-       p_usuario:String(user.id||user.usuario)
-     }),
-     4000,
-     'Preferência de visualização'
-   );
-   if(!pref.error&&typeof pref.data==='boolean')mostrarPrecos=pref.data;
- }catch(err){
-   console.warn('[Pampatto] Preferência de preços não carregou no login:',err);
- }
-
- state.currentUser={
-   id:user.id,
-   nome:user.nome,
-   cnpj:user.cnpj||'',
-   usuario:user.usuario,
-   perfil:user.perfil,
-   ativo:user.ativo,
-   mostrar_precos:mostrarPrecos
- };
+ const pref=await client.rpc('pampatto_obter_visualizacao_precos_v22',{p_usuario:String(user.id||user.usuario)});
+ if(!pref.error&&typeof pref.data==='boolean')mostrarPrecos=pref.data;
+ state.currentUser={id:user.id,nome:user.nome,cnpj:user.cnpj||'',usuario:user.usuario,perfil:user.perfil,ativo:user.ativo,mostrar_precos:mostrarPrecos};
  exposeUser();
-
- // Registro de log não bloqueia mais o login.
- client.rpc('pampatto_registrar_log_v13',{
+ await client.rpc('pampatto_registrar_log_v13',{
    p_usuario:String(user.id||user.usuario),
    p_evento:'login'
- }).then(({error:logError})=>{
-   if(logError)console.warn('[Pampatto] Falha ao registrar log:',logError);
- }).catch(err=>console.warn('[Pampatto] Falha ao registrar log:',err));
+ });
 }
 async function restoreSession(){
  return false;
@@ -423,29 +386,6 @@ function renderAll(){applyPermissions();renderProductArea('dashProducts');render
 async function refreshAll(){await Promise.all([loadProducts(),loadUsers(),loadOrderMetrics(),loadLogs()]);renderAll()}
 window.PAMPATTO_REFRESH_ALL=refreshAll;
 
-async function refreshAfterLogin(){
- const tasks=[
-   ['produtos',loadProducts],
-   ['usuários',loadUsers],
-   ['pedidos',loadOrderMetrics],
-   ['logs',loadLogs]
- ];
-
- const results=await Promise.allSettled(
-   tasks.map(([nome,fn])=>Promise.resolve().then(fn))
- );
-
- results.forEach((result,index)=>{
-   if(result.status==='rejected'){
-     console.error(`[Pampatto] Falha ao carregar ${tasks[index][0]}:`,result.reason);
-   }
- });
-
- // SEMPRE renderiza o que conseguiu carregar.
- renderAll();
- return results;
-}
-
 function openTab(tab){if(['estoque','empresa','relatorios','logs','acompanhar-lista'].includes(tab)&&!isAdmin())return;document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));$('tab-'+tab)?.classList.add('active');document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));document.querySelector(`[data-tab="${tab}"]`)?.classList.add('active');document.dispatchEvent(new CustomEvent('pampatto:tab',{detail:{tab}}))}
 window.openTab=openTab;
 
@@ -568,49 +508,9 @@ function bind(){
    });
  }
  document.querySelectorAll('[data-new-product]').forEach(b=>b.addEventListener('click',()=>openTab('estoque')));
- $('loginForm')?.addEventListener('submit',async e=>{
- e.preventDefault();
- if(state.busy)return;
-
- state.busy=true;
- hideError();
- setLoading(true,'ENTRANDO...');
-
- try{
-   await login(
-     $('login').value.trim().toLowerCase(),
-     $('senha').value
-   );
-
-   await refreshAfterLogin();
-
-   startRealtime();
-
-   $('loginPage').style.display='none';
-   $('appPage').style.display='block';
-   openTab('dashboard');
-
- }catch(err){
-   console.error('[Pampatto] Erro de login:',err);
-   const message=String(err?.message||'Não foi possível entrar.');
-
-   if(/statement timeout|excedeu o tempo|timeout/i.test(message)){
-     showError('O banco demorou para responder. Tente entrar novamente em alguns segundos.');
-   }else{
-     showError(message);
-   }
- }finally{
-   state.busy=false;
-   setLoading(false);
- }
-});
+ $('loginForm')?.addEventListener('submit',async e=>{e.preventDefault();if(state.busy)return;state.busy=true;hideError();setLoading(true,'ENTRANDO...');try{await login($('login').value.trim().toLowerCase(),$('senha').value);await refreshAll();startRealtime();$('loginPage').style.display='none';$('appPage').style.display='block';openTab('dashboard')}catch(err){showError(err.message||'Não foi possível entrar.')}finally{state.busy=false;setLoading(false)}});
  $('toggleSenha')?.addEventListener('click',()=>{$('senha').type=$('senha').type==='password'?'text':'password'});
- $('senha')?.addEventListener('keyup',e=>{
- const caps=$('capsAlert');
- if(!caps)return;
- const isCaps=typeof e?.getModifierState==='function' ? e.getModifierState('CapsLock') : false;
- caps.style.display=isCaps?'block':'none';
-});
+ $('senha')?.addEventListener('keyup',e=>{$('capsAlert').style.display=e.getModifierState('CapsLock')?'block':'none'});
  $('logoutBtn')?.addEventListener('click',async()=>{
    const atual=state.currentUser;
    if(atual){
