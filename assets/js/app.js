@@ -83,9 +83,29 @@ async function restoreSession(){
 }
 
 async function loadProducts(){
- const {data,error}=await requireDb().from('produtos').select('*').eq('ativo',true);
- if(error)throw error;
- const normalized=(data||[]).map((p,index)=>{
+ const client=requireDb();
+ const batchSize=5;
+ const rows=[];
+
+ // Mantém SELECT * para preservar todos os campos, inclusive imagem_url.
+ // A única mudança é dividir a leitura em lotes pequenos para evitar timeout.
+ for(let offset=0;;offset+=batchSize){
+   const {data,error}=await client
+     .from('produtos')
+     .select('*')
+     .eq('ativo',true)
+     .order('id',{ascending:true})
+     .range(offset,offset+batchSize-1);
+
+   if(error)throw error;
+
+   const batch=data||[];
+   rows.push(...batch);
+
+   if(batch.length<batchSize)break;
+ }
+
+ const normalized=rows.map((p,index)=>{
    const item={
      ...p,
      id:p.id ?? p.produto_id ?? p.codigo ?? `produto-${index}`,
@@ -510,7 +530,12 @@ function bind(){
  document.querySelectorAll('[data-new-product]').forEach(b=>b.addEventListener('click',()=>openTab('estoque')));
  $('loginForm')?.addEventListener('submit',async e=>{e.preventDefault();if(state.busy)return;state.busy=true;hideError();setLoading(true,'ENTRANDO...');try{await login($('login').value.trim().toLowerCase(),$('senha').value);await refreshAll();startRealtime();$('loginPage').style.display='none';$('appPage').style.display='block';openTab('dashboard')}catch(err){showError(err.message||'Não foi possível entrar.')}finally{state.busy=false;setLoading(false)}});
  $('toggleSenha')?.addEventListener('click',()=>{$('senha').type=$('senha').type==='password'?'text':'password'});
- $('senha')?.addEventListener('keyup',e=>{$('capsAlert').style.display=e.getModifierState('CapsLock')?'block':'none'});
+ $('senha')?.addEventListener('keyup',e=>{
+ const caps=$('capsAlert');
+ if(!caps)return;
+ const capsOn=typeof e?.getModifierState==='function' ? e.getModifierState('CapsLock') : false;
+ caps.style.display=capsOn?'block':'none';
+});
  $('logoutBtn')?.addEventListener('click',async()=>{
    const atual=state.currentUser;
    if(atual){
