@@ -102,7 +102,7 @@ async function restoreSession(){
 
 async function loadProducts(){
  const client=requireDb();
- const batchSize=100;
+ const batchSize=50;
  const rows=[];
 
  // Mantém SELECT * para preservar todos os campos, inclusive imagem_url.
@@ -545,7 +545,13 @@ function ensureProductNamesVisible(){
  });
 }
 function renderAll(){applyPermissions();renderProductArea('dashProducts');renderProductArea('produtosView');ensureProductNamesVisible();renderStock();renderUsers();renderMetrics();renderReports();renderLogs();document.dispatchEvent(new CustomEvent('pampatto:data-ready'))}
-async function refreshAll(){await Promise.all([loadProducts(),loadUsers(),loadOrderMetrics(),loadLogs()]);renderAll()}
+async function refreshAll(){
+ const resultados=await Promise.allSettled([loadProducts(),loadUsers(),loadOrderMetrics(),loadLogs()]);
+ const erroProdutos=resultados[0].status==='rejected'?resultados[0].reason:null;
+ resultados.forEach((r,i)=>{if(r.status==='rejected')console.warn(['Produtos','Usuários','Pedidos','Logs'][i]+' não carregaram:',r.reason)});
+ if(erroProdutos)throw erroProdutos;
+ renderAll();
+}
 window.PAMPATTO_REFRESH_ALL=refreshAll;
 
 function openTab(tab){if(['estoque','empresa','relatorios','logs','acompanhar-lista'].includes(tab)&&!isAdmin())return;document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));$('tab-'+tab)?.classList.add('active');document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));document.querySelector(`[data-tab="${tab}"]`)?.classList.add('active');if(tab==='dashboard')renderProductArea('dashProducts');if(tab==='produtos')renderProductArea('produtosView');document.dispatchEvent(new CustomEvent('pampatto:tab',{detail:{tab}}))}
@@ -679,20 +685,28 @@ function bind(){
  try{
    await login($('login').value.trim().toLowerCase(),$('senha').value);
 
-   // Libera a interface imediatamente após autenticar.
+   // Produtos e pedidos são essenciais para abrir o sistema sem telas vazias.
+   setLoading(true,'CARREGANDO DADOS...');
+   const essenciais=await Promise.allSettled([loadProducts(),loadOrderMetrics()]);
+   const erroProdutos=essenciais[0].status==='rejected'?essenciais[0].reason:null;
+   const erroPedidos=essenciais[1].status==='rejected'?essenciais[1].reason:null;
+   if(erroProdutos)throw new Error('Login realizado, mas não foi possível carregar os produtos: '+(erroProdutos.message||erroProdutos));
+   if(erroPedidos)console.warn('Pedidos não carregaram no login:',erroPedidos);
+
+   // Renderiza o que já está disponível antes de liberar a interface.
+   renderAll();
    $('loginPage').style.display='none';
    $('appPage').style.display='block';
    openTab('dashboard');
    setLoading(false);
+   startRealtime();
 
-   // Dados do painel carregam em seguida, sem manter o usuário preso na tela de login.
-   try{
-     await refreshAll();
-     startRealtime();
-   }catch(loadErr){
-     console.error('Erro ao carregar dados após o login:',loadErr);
-     showError('Login realizado, mas alguns dados demoraram para carregar. Atualize a página se necessário.');
-   }
+   // Dados administrativos são secundários e não podem bloquear produtos/pedidos.
+   Promise.allSettled([loadUsers(),loadLogs()]).then(resultados=>{
+     resultados.forEach((r,i)=>{if(r.status==='rejected')console.warn(i===0?'Usuários não carregaram:':'Logs não carregaram:',r.reason)});
+     renderUsers();
+     renderLogs();
+   }).catch(()=>{});
  }catch(err){
    showError(err.message||'Não foi possível entrar.');
  }finally{
