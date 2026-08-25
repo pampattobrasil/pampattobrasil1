@@ -68,15 +68,26 @@ async function login(usuario,senha){
  if(error)throw error;
  const user=Array.isArray(data)?data[0]:data;
  if(!user)throw new Error('Usuário ou senha inválidos.');
+
  let mostrarPrecos=true;
- const pref=await client.rpc('pampatto_obter_visualizacao_precos_v22',{p_usuario:String(user.id||user.usuario)});
- if(!pref.error&&typeof pref.data==='boolean')mostrarPrecos=pref.data;
+ try{
+   const pref=await Promise.race([
+     client.rpc('pampatto_obter_visualizacao_precos_v22',{p_usuario:String(user.id||user.usuario)}),
+     new Promise(resolve=>setTimeout(()=>resolve({data:null,error:null}),1800))
+   ]);
+   if(!pref?.error&&typeof pref?.data==='boolean')mostrarPrecos=pref.data;
+ }catch(err){
+   console.warn('Preferência de preços não bloqueou o login:',err);
+ }
+
  state.currentUser={id:user.id,nome:user.nome,cnpj:user.cnpj||'',usuario:user.usuario,perfil:user.perfil,ativo:user.ativo,mostrar_precos:mostrarPrecos};
  exposeUser();
- await client.rpc('pampatto_registrar_log_v13',{
+
+ // O registro de log é secundário e não deve atrasar a entrada no sistema.
+ client.rpc('pampatto_registrar_log_v13',{
    p_usuario:String(user.id||user.usuario),
    p_evento:'login'
- });
+ }).catch(err=>console.warn('Não foi possível registrar o log de login:',err));
 }
 async function restoreSession(){
  return false;
@@ -84,7 +95,7 @@ async function restoreSession(){
 
 async function loadProducts(){
  const client=requireDb();
- const batchSize=5;
+ const batchSize=100;
  const rows=[];
 
  // Mantém SELECT * para preservar todos os campos, inclusive imagem_url.
@@ -652,7 +663,36 @@ function bind(){
    });
  }
  document.querySelectorAll('[data-new-product]').forEach(b=>b.addEventListener('click',()=>openTab('estoque')));
- $('loginForm')?.addEventListener('submit',async e=>{e.preventDefault();if(state.busy)return;state.busy=true;hideError();setLoading(true,'ENTRANDO...');try{await login($('login').value.trim().toLowerCase(),$('senha').value);await refreshAll();startRealtime();$('loginPage').style.display='none';$('appPage').style.display='block';openTab('dashboard')}catch(err){showError(err.message||'Não foi possível entrar.')}finally{state.busy=false;setLoading(false)}});
+ $('loginForm')?.addEventListener('submit',async e=>{
+ e.preventDefault();
+ if(state.busy)return;
+ state.busy=true;
+ hideError();
+ setLoading(true,'ENTRANDO...');
+ try{
+   await login($('login').value.trim().toLowerCase(),$('senha').value);
+
+   // Libera a interface imediatamente após autenticar.
+   $('loginPage').style.display='none';
+   $('appPage').style.display='block';
+   openTab('dashboard');
+   setLoading(false);
+
+   // Dados do painel carregam em seguida, sem manter o usuário preso na tela de login.
+   try{
+     await refreshAll();
+     startRealtime();
+   }catch(loadErr){
+     console.error('Erro ao carregar dados após o login:',loadErr);
+     showError('Login realizado, mas alguns dados demoraram para carregar. Atualize a página se necessário.');
+   }
+ }catch(err){
+   showError(err.message||'Não foi possível entrar.');
+ }finally{
+   state.busy=false;
+   setLoading(false);
+ }
+});
  $('toggleSenha')?.addEventListener('click',()=>{$('senha').type=$('senha').type==='password'?'text':'password'});
  $('senha')?.addEventListener('keyup',e=>{
  const caps=$('capsAlert');
