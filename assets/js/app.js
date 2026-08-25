@@ -38,6 +38,68 @@ function resolveProductImage(product){
  const partial=Object.keys(PRODUCT_IMAGE_MAP).sort((a,b)=>b.length-a.length).find(k=>key.includes(k)||k.includes(key));
  return partial?`assets/images/${PRODUCT_IMAGE_MAP[partial]}`:'assets/images/logo.jpg';
 }
+
+function resolveLocalProductImage(product){
+ const key=normalizeText(product?.nome||product?.produto_nome||product?.titulo||'');
+ const exact=PRODUCT_IMAGE_MAP[key];
+ if(exact)return `assets/images/${exact}`;
+ const partial=Object.keys(PRODUCT_IMAGE_MAP).sort((a,b)=>b.length-a.length).find(k=>key.includes(k)||k.includes(key));
+ return partial?`assets/images/${PRODUCT_IMAGE_MAP[partial]}`:'assets/images/logo.jpg';
+}
+
+async function loadRemoteImageForProduct(product){
+ if(!product||!product.id||product._dbImageLoaded||product._dbImageLoading)return product?.imagem_url||'';
+ product._dbImageLoading=true;
+ try{
+   const {data,error}=await requireDb()
+     .from('produtos')
+     .select('id,imagem_url')
+     .eq('id',product.id)
+     .maybeSingle();
+
+   if(error){
+     console.warn('Imagem personalizada não carregada para',product.nome,error);
+     product._dbImageLoaded=true;
+     return product.imagem_url||'';
+   }
+
+   const remote=String(data?.imagem_url||'').trim();
+   if(remote && !/logo(?:\.jpg|\.png)?(?:\?|$)/i.test(remote)){
+     product.imagem_url=remote;
+   }
+   product._dbImageLoaded=true;
+   return product.imagem_url||'';
+ }catch(err){
+   console.warn('Falha ao carregar imagem personalizada:',product?.nome,err);
+   product._dbImageLoaded=true;
+   return product.imagem_url||'';
+ }finally{
+   product._dbImageLoading=false;
+ }
+}
+
+let imageHydrationTimer=null;
+function hydrateProductImagesInBackground(){
+ if(imageHydrationTimer)clearTimeout(imageHydrationTimer);
+ imageHydrationTimer=setTimeout(async()=>{
+   // Só consulta o banco para produtos sem imagem local conhecida.
+   const pendentes=state.produtos.filter(p=>{
+     const local=resolveLocalProductImage(p);
+     return /assets\/images\/logo\.jpg$/i.test(local) && !p._dbImageLoaded;
+   });
+
+   // Baixa uma imagem por vez para evitar novas consultas pesadas.
+   for(const p of pendentes){
+     await loadRemoteImageForProduct(p);
+   }
+
+   if(pendentes.length){
+     renderProductArea('dashProducts');
+     renderProductArea('produtosView');
+     renderStock();
+   }
+ },350);
+}
 function dedupeProducts(rows){
  const map=new Map();
  for(const p of rows){
@@ -102,27 +164,18 @@ async function restoreSession(){
 
 async function loadProducts(){
  const client=requireDb();
- const batchSize=50;
- const rows=[];
 
- // Mantém SELECT * para preservar todos os campos, inclusive imagem_url.
- // A única mudança é dividir a leitura em lotes pequenos para evitar timeout.
- for(let offset=0;;offset+=batchSize){
-   const {data,error}=await client
-     .from('produtos')
-     .select('*')
-     .eq('ativo',true)
-     .order('id',{ascending:true})
-     .range(offset,offset+batchSize-1);
+ // Carregamento leve: não busca imagem_url/base64 durante o login.
+ // Isso evita timeout/erro 500 quando há imagens pesadas na tabela produtos.
+ const {data,error}=await client
+   .from('produtos')
+   .select('id,nome,fabricante,quantidade,valor,tipo,validade,ativo,updated_at')
+   .eq('ativo',true)
+   .order('id',{ascending:true});
 
-   if(error)throw error;
+ if(error)throw error;
 
-   const batch=data||[];
-   rows.push(...batch);
-
-   if(batch.length<batchSize)break;
- }
-
+ const rows=data||[];
  const normalized=rows.map((p,index)=>{
    const item={
      ...p,
@@ -131,12 +184,17 @@ async function loadProducts(){
      tipo:String(p.tipo ?? p.categoria ?? p.grupo ?? 'Outros').trim(),
      valor:Number(p.valor ?? p.preco ?? p.valor_unitario ?? 0),
      quantidade:Number(p.quantidade ?? p.estoque ?? p.saldo ?? 0),
-     ativo:p.ativo !== false
+     ativo:p.ativo !== false,
+     imagem_url:resolveLocalProductImage(p),
+     _dbImageLoaded:false
    };
-   item.imagem_url=resolveProductImage(item);
    return item;
  });
+
  state.produtos=dedupeProducts(normalized).sort((a,b)=>a.tipo.localeCompare(b.tipo,'pt-BR')||a.nome.localeCompare(b.nome,'pt-BR'));
+
+ // Imagens personalizadas são carregadas depois, fora do caminho crítico do login.
+ hydrateProductImagesInBackground();
 }
 async function loadUsers(){
  if(!isAdmin())return;
@@ -194,7 +252,7 @@ function renderStock(){
  if(headRow)headRow.innerHTML='<th>Foto</th><th>Produto</th><th>Categoria</th><th>Valor</th><th>Ações</th>';
  const termo=($('busca')?.value||'').toLowerCase();
  const list=state.produtos.filter(p=>`${p.nome} ${p.tipo}`.toLowerCase().includes(termo));
- $('tbody').innerHTML=list.map(p=>`<tr><td><img class="thumb" src="${esc(resolveProductImage(p))}" alt="${esc(p.nome)}" onerror="this.src='assets/images/logo.jpg'"></td><td><strong>${esc(p.nome)}</strong><br><span class="muted">${esc(p.fabricante||'')}</span></td><td><span class="tag">${esc(p.tipo)}</span></td><td><input class="stock-edit" id="stock-price-${p.id}" type="number" min="0" step="0.01" value="${Number(p.valor||0).toFixed(2)}"></td><td><div class="actions"><button class="mini-btn" data-save-stock="${p.id}">Salvar valor</button><button class="mini-btn" data-edit-product="${p.id}">Editar dados</button></div><span class="stock-save-ok" id="stock-ok-${p.id}"></span></td></tr>`).join('')||'<tr><td colspan="5" class="empty">Nenhum produto encontrado.</td></tr>';
+ $('tbody').innerHTML=list.map(p=>`<tr><td><img class="thumb" src="${esc(resolveProductImage(p))}" alt="${esc(p.nome)}" loading="lazy" decoding="async" onerror="this.src='assets/images/logo.jpg'"></td><td><strong>${esc(p.nome)}</strong><br><span class="muted">${esc(p.fabricante||'')}</span></td><td><span class="tag">${esc(p.tipo)}</span></td><td><input class="stock-edit" id="stock-price-${p.id}" type="number" min="0" step="0.01" value="${Number(p.valor||0).toFixed(2)}"></td><td><div class="actions"><button class="mini-btn" data-save-stock="${p.id}">Salvar valor</button><button class="mini-btn" data-edit-product="${p.id}">Editar dados</button></div><span class="stock-save-ok" id="stock-ok-${p.id}"></span></td></tr>`).join('')||'<tr><td colspan="5" class="empty">Nenhum produto encontrado.</td></tr>';
 }
 function renderUsers(){
  if(!isAdmin()||!$('usersBody'))return;
@@ -560,7 +618,61 @@ window.openTab=openTab;
 async function saveStock(id){const valor=Number($('stock-price-'+id)?.value);if(!Number.isFinite(valor)||valor<0)return alert('Informe um valor válido.');const {error}=await requireDb().from('produtos').update({valor,updated_at:new Date().toISOString()}).eq('id',id);if(error)return alert(error.message);await loadProducts();renderAll()}
 function editProduct(id){const p=state.produtos.find(x=>sameId(x.id,id));if(!p)return;$('produtoId').value=p.id;$('nome').value=p.nome;$('fabricante').value=p.fabricante||'';$('quantidade').value=Number(p.quantidade||0);$('valor').value=Number(p.valor||0).toFixed(2);$('tipo').value=p.tipo;$('validade').value=p.validade||'';$('stockFormTitle').textContent='Editar produto';$('cancelProductEdit').style.display='block';openTab('estoque')}
 async function fileToDataUrl(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)})}
-async function submitProduct(e){e.preventDefault();const id=$('produtoId').value;const file=$('imagem').files[0];const current=state.produtos.find(p=>sameId(p.id,id));const payload={nome:$('nome').value.trim(),fabricante:$('fabricante').value.trim()||'Empório Pampatto',quantidade:Number($('quantidade').value||0),valor:Number($('valor').value||0),tipo:$('tipo').value,validade:$('validade').value||null,imagem_url:file?await fileToDataUrl(file):(current?.imagem_url||resolveProductImage({nome:$('nome').value.trim()})),ativo:true,updated_at:new Date().toISOString()};if(!payload.nome)return alert('Informe o nome do produto.');let result=id?await requireDb().from('produtos').update(payload).eq('id',id):await requireDb().from('produtos').insert(payload);if(result.error)return alert(result.error.message);e.target.reset();$('produtoId').value='';$('stockFormTitle').textContent='Cadastrar produto';$('cancelProductEdit').style.display='none';await loadProducts();renderAll()}
+async function submitProduct(e){
+ e.preventDefault();
+ const id=$('produtoId').value;
+ const file=$('imagem').files[0];
+ const current=state.produtos.find(p=>sameId(p.id,id));
+
+ const nome=$('nome').value.trim();
+ if(!nome)return alert('Informe o nome do produto.');
+
+ let imagemParaSalvar='';
+ if(file){
+   imagemParaSalvar=await fileToDataUrl(file);
+ }else if(id){
+   // Se estiver editando sem trocar a imagem, busca a imagem original dessa linha
+   // para nunca sobrescrever uma foto personalizada com o fallback local.
+   try{
+     const {data,error}=await requireDb()
+       .from('produtos')
+       .select('imagem_url')
+       .eq('id',id)
+       .maybeSingle();
+     if(!error)imagemParaSalvar=String(data?.imagem_url||'').trim();
+   }catch(err){
+     console.warn('Não foi possível consultar a imagem atual do produto:',err);
+   }
+   if(!imagemParaSalvar)imagemParaSalvar=current?.imagem_url||resolveLocalProductImage({nome});
+ }else{
+   imagemParaSalvar=resolveLocalProductImage({nome});
+ }
+
+ const payload={
+   nome,
+   fabricante:$('fabricante').value.trim()||'Empório Pampatto',
+   quantidade:Number($('quantidade').value||0),
+   valor:Number($('valor').value||0),
+   tipo:$('tipo').value,
+   validade:$('validade').value||null,
+   imagem_url:imagemParaSalvar,
+   ativo:true,
+   updated_at:new Date().toISOString()
+ };
+
+ let result=id
+   ?await requireDb().from('produtos').update(payload).eq('id',id)
+   :await requireDb().from('produtos').insert(payload);
+
+ if(result.error)return alert(result.error.message);
+
+ e.target.reset();
+ $('produtoId').value='';
+ $('stockFormTitle').textContent='Cadastrar produto';
+ $('cancelProductEdit').style.display='none';
+ await loadProducts();
+ renderAll();
+}
 async function submitUser(e){e.preventDefault();const payload={p_nome:$('clienteNome').value.trim(),p_cnpj:$('clienteCnpj').value.trim(),p_usuario:$('clienteUsuario').value.trim(),p_senha:$('clienteSenha').value,p_perfil:$('clientePerfil').value};const {error}=await requireDb().rpc('cadastrar_usuario',payload);if(error)return alert(error.message);e.target.reset();await loadUsers();renderUsers();const n=$('userNotice');if(n){n.style.display='block';n.textContent='Cliente cadastrado com sucesso.';setTimeout(()=>n.style.display='none',2500)}}
 
 async function setUserPriceVisibility(id,mostrar){
