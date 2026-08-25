@@ -673,7 +673,64 @@ async function submitProduct(e){
  await loadProducts();
  renderAll();
 }
-async function submitUser(e){e.preventDefault();const payload={p_nome:$('clienteNome').value.trim(),p_cnpj:$('clienteCnpj').value.trim(),p_usuario:$('clienteUsuario').value.trim(),p_senha:$('clienteSenha').value,p_perfil:$('clientePerfil').value};const {error}=await requireDb().rpc('cadastrar_usuario',payload);if(error)return alert(error.message);e.target.reset();await loadUsers();renderUsers();const n=$('userNotice');if(n){n.style.display='block';n.textContent='Cliente cadastrado com sucesso.';setTimeout(()=>n.style.display='none',2500)}}
+async function submitUser(e){
+ e.preventDefault();
+
+ const nome=$('clienteNome').value.trim();
+ const cnpj=$('clienteCnpj').value.trim();
+ const usuario=$('clienteUsuario').value.trim().toLowerCase();
+ const senha=$('clienteSenha').value;
+ const perfil=$('clientePerfil').value;
+
+ if(!nome)return alert('Informe o nome do cliente.');
+ if(!usuario)return alert('Informe o usuário de acesso.');
+ if(!senha)return alert('Informe a senha de acesso.');
+
+ // Validação local primeiro: evita enviar ao banco um login que já sabemos que existe.
+ const usuarioExistente=state.usuarios.find(u=>String(u.usuario||'').trim().toLowerCase()===usuario);
+ if(usuarioExistente){
+   alert(`O usuário "${usuario}" já está cadastrado para ${usuarioExistente.nome||'outro acesso'}.\n\nEscolha outro nome de usuário.`);
+   $('clienteUsuario')?.focus();
+   return;
+ }
+
+ const payload={
+   p_nome:nome,
+   p_cnpj:cnpj,
+   p_usuario:usuario,
+   p_senha:senha,
+   p_perfil:perfil
+ };
+
+ const {error}=await requireDb().rpc('cadastrar_usuario',payload);
+
+ if(error){
+   const msg=String(error.message||'');
+   const code=String(error.code||'');
+
+   // Segunda proteção: trata a restrição UNIQUE do banco sem expor erro técnico.
+   if(code==='23505'||/duplicate key|usuarios_usuario_key|unique constraint/i.test(msg)){
+     alert(`O usuário "${usuario}" já está cadastrado.\n\nEscolha outro nome de usuário para este cliente.`);
+     $('clienteUsuario')?.focus();
+     await loadUsers().catch(()=>{});
+     renderUsers();
+     return;
+   }
+
+   return alert(`Não foi possível cadastrar o cliente.\n\n${msg||'Tente novamente.'}`);
+ }
+
+ e.target.reset();
+ await loadUsers();
+ renderUsers();
+
+ const n=$('userNotice');
+ if(n){
+   n.style.display='block';
+   n.textContent='Cliente cadastrado com sucesso.';
+   setTimeout(()=>n.style.display='none',2500);
+ }
+}
 
 async function setUserPriceVisibility(id,mostrar){
  const usuario=state.usuarios.find(u=>sameId(u.id,id));
