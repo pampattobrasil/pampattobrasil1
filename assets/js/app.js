@@ -84,10 +84,17 @@ async function login(usuario,senha){
  exposeUser();
 
  // O registro de log é secundário e não deve atrasar a entrada no sistema.
- client.rpc('pampatto_registrar_log_v13',{
-   p_usuario:String(user.id||user.usuario),
-   p_evento:'login'
- }).catch(err=>console.warn('Não foi possível registrar o log de login:',err));
+ // O cliente Supabase usado neste projeto não retorna uma Promise nativa
+ // diretamente em rpc(), portanto não usamos .catch() encadeado aqui.
+ // O log continua secundário e não pode impedir o login.
+ try{
+   Promise.resolve(client.rpc('pampatto_registrar_log_v13',{
+     p_usuario:String(user.id||user.usuario),
+     p_evento:'login'
+   })).catch(err=>console.warn('Não foi possível registrar o log de login:',err));
+ }catch(err){
+   console.warn('Não foi possível iniciar o registro do log de login:',err);
+ }
 }
 async function restoreSession(){
  return false;
