@@ -93,10 +93,11 @@ async function loadOrders(filter=state.orderFilter||'ativos'){
  state.orderFilter=filter;
  let q=db().from('catalogo_pedidos')
    .select('id,numero_pedido,sequencial,cliente_identificador,cliente_nome,status,valor_total,created_at,catalogo_pedido_itens(id,produto_nome,quantidade,valor_unitario,subtotal,ordem)')
-   .order('created_at',{ascending:false})
-   .limit(5);
+   .order('created_at',{ascending:false});
 
- if(u.perfil!=='admin')q=q.eq('cliente_identificador',u.id);
+ // Administrador: exibe todos os pedidos do filtro, sem limite de quantidade.
+ // Cliente: mantém apenas os 5 pedidos mais recentes para preservar o comportamento atual.
+ if(u.perfil!=='admin')q=q.eq('cliente_identificador',u.id).limit(5);
  q=filter==='cancelados'?q.eq('status','cancelado'):q.neq('status','cancelado');
 
  const {data,error}=await q;
@@ -108,7 +109,7 @@ async function loadOrders(filter=state.orderFilter||'ativos'){
    <div class="panel-head">
      <div>
        <h3>${u.perfil==='admin'?'Pedidos':'Meus últimos pedidos'}</h3>
-       <p class="muted">Os cinco pedidos mais recentes deste filtro ficam disponíveis. O histórico completo permanece nos relatórios.</p>
+       <p class="muted">${u.perfil==='admin'?'Todos os pedidos deste filtro ficam disponíveis, sem limite de quantidade.':'Os cinco pedidos mais recentes deste filtro ficam disponíveis. O histórico completo permanece nos relatórios.'}</p>
      </div>
      <div class="orders-filter-actions">
        <button class="outline-btn ${filter==='ativos'?'active':''}" type="button" data-order-filter="ativos">Pedidos ativos</button>
