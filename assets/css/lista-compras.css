@@ -14,3 +14,38 @@
 
 @media(max-width:900px){.cart-item-row{grid-template-columns:1fr 150px}.cart-item-row>strong{text-align:right}.cart-remove{grid-column:1/-1}.order-card-head{flex-direction:column}}
 @media(max-width:680px){.shopping-list-row{grid-template-columns:1fr 92px 42px}.shopping-list-card-head{flex-direction:column}.shopping-list-actions{flex-direction:column-reverse}.shopping-list-actions button{width:100%}.cart-item-row{grid-template-columns:1fr}.cart-item-row>strong{text-align:left}.cart-stepper{max-width:180px}.order-timeline{gap:2px}.order-stage small{font-size:.66rem}.top-user{min-width:0}}
+
+
+/* Prazo de entrega dos pedidos — 5 dias úteis */
+.delivery-deadline-alert{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  flex-wrap:wrap;
+  margin:14px 0 8px;
+  padding:11px 13px;
+  border:1px solid rgba(239,68,68,.58);
+  border-radius:10px;
+  background:rgba(127,29,29,.18);
+  color:#fecaca;
+}
+.delivery-deadline-alert strong{
+  color:#ff6b6b!important;
+  font-size:.9rem;
+  font-weight:900;
+}
+.delivery-deadline-alert span{
+  color:#fecaca!important;
+  font-size:.86rem;
+  font-weight:800;
+}
+.delivery-deadline-alert.overdue{
+  border-color:#ef4444;
+  background:rgba(153,27,27,.30);
+  box-shadow:inset 4px 0 0 #ef4444;
+}
+.delivery-deadline-alert.overdue strong,
+.delivery-deadline-alert.overdue span{
+  color:#ff8a8a!important;
+}
