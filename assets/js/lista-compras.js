@@ -87,6 +87,31 @@ function timeline(status,labels=STATUS){
      </div>`).join('')}
  </div>`;
 }
+function addBusinessDays(dateValue,days=5){
+ const d=new Date(dateValue);
+ if(Number.isNaN(d.getTime()))return null;
+ d.setHours(23,59,59,999);
+ let added=0;
+ while(added<days){
+   d.setDate(d.getDate()+1);
+   const dow=d.getDay();
+   if(dow!==0&&dow!==6)added++;
+ }
+ return d;
+}
+function deliveryDeadlineInfo(createdAt){
+ const due=addBusinessDays(createdAt,5);
+ if(!due)return {html:'',due:null,overdue:false};
+ const now=new Date();
+ const overdue=now>due;
+ const dueText=due.toLocaleDateString('pt-BR');
+ return {
+   due,
+   overdue,
+   html:`<div class="delivery-deadline-alert ${overdue?'overdue':''}"><strong>${overdue?'Prazo de entrega vencido':'Prazo para entrega'}</strong><span>${overdue?'Venceu em':'Entregar até'} ${dueText} · prazo de 5 dias úteis</span></div>`
+ };
+}
+
 async function loadOrders(filter=state.orderFilter||'ativos'){
  const u=user(),target=$('ordersContent');
  if(!u||!target)return;
@@ -94,7 +119,7 @@ async function loadOrders(filter=state.orderFilter||'ativos'){
  const admin=u.perfil==='admin';
  let q=db().from('catalogo_pedidos')
    .select('id,numero_pedido,sequencial,cliente_identificador,cliente_nome,status,valor_total,created_at,catalogo_pedido_itens(id,produto_nome,quantidade,valor_unitario,subtotal,ordem)')
-   .order('created_at',{ascending:false});
+   .order('created_at',{ascending:true});
 
  // Administrador: sem limite, para exibir todos os pedidos do filtro.
  // Cliente: preserva o comportamento atual de exibir apenas os 5 mais recentes.
@@ -149,6 +174,7 @@ async function loadOrders(filter=state.orderFilter||'ativos'){
            <div><span class="tag ${completed?'status-completed':cancelled?'status-cancelled':''}">${esc(STATUS[normalizedStatus]||'Pedido realizado')}</span></div>
          </div>
        </div>
+       ${(!cancelled&&!completed)?deliveryDeadlineInfo(o.created_at).html:''}
        ${cancelled?'':timeline(normalizedStatus)}
        <div class="order-items">${(o.catalogo_pedido_itens||[]).sort((a,b)=>Number(a.ordem||0)-Number(b.ordem||0)).map(i=>`<div><span>${i.quantidade}× ${esc(i.produto_nome)}</span>${mostrarPrecos?`<strong>${money(i.subtotal??(Number(i.quantidade||0)*Number(i.valor_unitario||0)))}</strong>`:''}</div>`).join('')}</div>
        ${cancelled?'':`<div class="order-card-actions">
