@@ -99,16 +99,51 @@ function addBusinessDays(dateValue,days=5){
  }
  return d;
 }
+function countBusinessDaysBetween(startValue,endValue){
+ const start=new Date(startValue),end=new Date(endValue);
+ if(Number.isNaN(start.getTime())||Number.isNaN(end.getTime()))return 0;
+ start.setHours(0,0,0,0);end.setHours(0,0,0,0);
+ if(start.getTime()===end.getTime())return 0;
+ const direction=start<end?1:-1;
+ let d=new Date(start),count=0;
+ while(d.getTime()!==end.getTime()){
+   d.setDate(d.getDate()+direction);
+   const dow=d.getDay();
+   if(dow!==0&&dow!==6)count++;
+ }
+ return count*direction;
+}
 function deliveryDeadlineInfo(createdAt){
  const due=addBusinessDays(createdAt,5);
  if(!due)return {html:'',due:null,overdue:false};
  const now=new Date();
- const overdue=now>due;
- const dueText=due.toLocaleDateString('pt-BR');
+ const today=new Date(now);today.setHours(0,0,0,0);
+ const dueDay=new Date(due);dueDay.setHours(0,0,0,0);
+ const overdue=today>dueDay;
+ const dueText=dueDay.toLocaleDateString('pt-BR');
+ const businessDiff=countBusinessDaysBetween(today,dueDay);
+ let countdown='';
+ if(overdue){
+   const lateDays=Math.abs(businessDiff);
+   countdown=lateDays===1?'Vencido há 1 dia útil':`Vencido há ${lateDays} dias úteis`;
+ }else if(businessDiff===0){
+   countdown='Vence hoje';
+ }else{
+   countdown=businessDiff===1?'Falta 1 dia útil':`Faltam ${businessDiff} dias úteis`;
+ }
  return {
    due,
    overdue,
-   html:`<div class="delivery-deadline-alert ${overdue?'overdue':''}"><strong>${overdue?'Prazo de entrega vencido':'Prazo para entrega'}</strong><span>${overdue?'Venceu em':'Entregar até'} ${dueText} · prazo de 5 dias úteis</span></div>`
+   html:`<div class="delivery-deadline-alert ${overdue?'overdue':'within-deadline'}">
+     <div class="delivery-deadline-main">
+       <span class="delivery-deadline-label">Prazo de entrega:</span>
+       <strong class="delivery-deadline-status">${overdue?'VENCIDO':'DENTRO DO PRAZO'}</strong>
+     </div>
+     <div class="delivery-deadline-details">
+       <span>Entrega até ${dueText}</span>
+       <span class="delivery-deadline-countdown">${countdown}</span>
+     </div>
+   </div>`
  };
 }
 
