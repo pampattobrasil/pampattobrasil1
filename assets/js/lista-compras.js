@@ -91,28 +91,42 @@ async function loadOrders(filter=state.orderFilter||'ativos'){
  const u=user(),target=$('ordersContent');
  if(!u||!target)return;
  state.orderFilter=filter;
+ const admin=u.perfil==='admin';
  let q=db().from('catalogo_pedidos')
    .select('id,numero_pedido,sequencial,cliente_identificador,cliente_nome,status,valor_total,created_at,catalogo_pedido_itens(id,produto_nome,quantidade,valor_unitario,subtotal,ordem)')
    .order('created_at',{ascending:false});
 
- // Administrador: exibe todos os pedidos do filtro, sem limite de quantidade.
- // Cliente: mantém apenas os 5 pedidos mais recentes para preservar o comportamento atual.
- if(u.perfil!=='admin')q=q.eq('cliente_identificador',u.id).limit(5);
- q=filter==='cancelados'?q.eq('status','cancelado'):q.neq('status','cancelado');
+ // Administrador: sem limite, para exibir todos os pedidos do filtro.
+ // Cliente: preserva o comportamento atual de exibir apenas os 5 mais recentes.
+ if(!admin)q=q.eq('cliente_identificador',u.id).limit(5);
+
+ if(filter==='cancelados'){
+   q=q.eq('status','cancelado');
+ }else if(filter==='entregues'){
+   q=q.in('status',['concluido','entregue']);
+ }else{
+   // Pedidos em aberto: somente os que ainda estão em andamento.
+   q=q.in('status',['pedido_realizado','em_separacao','separado']);
+ }
 
  const {data,error}=await q;
  if(error){target.innerHTML=`<div class="notice error">${esc(error.message)}</div>`;return}
  state.orders=data||[];
- const mostrarPrecos=u.perfil==='admin'||u.mostrar_precos!==false;
+ const mostrarPrecos=admin||u.mostrar_precos!==false;
+
+ const descricao=admin
+   ? (filter==='ativos'?'Todos os pedidos em aberto são exibidos, sem limite de quantidade.':filter==='entregues'?'Pedidos entregues/concluídos para consulta e controle.':'Pedidos cancelados para consulta e controle.')
+   : 'Os cinco pedidos mais recentes deste filtro ficam disponíveis. O histórico completo permanece nos relatórios.';
 
  target.innerHTML=`<div class="panel">
    <div class="panel-head">
      <div>
-       <h3>${u.perfil==='admin'?'Pedidos':'Meus últimos pedidos'}</h3>
-       <p class="muted">${u.perfil==='admin'?'Todos os pedidos deste filtro ficam disponíveis, sem limite de quantidade.':'Os cinco pedidos mais recentes deste filtro ficam disponíveis. O histórico completo permanece nos relatórios.'}</p>
+       <h3>${admin?'Pedidos':'Meus últimos pedidos'}</h3>
+       <p class="muted">${descricao}</p>
      </div>
      <div class="orders-filter-actions">
-       <button class="outline-btn ${filter==='ativos'?'active':''}" type="button" data-order-filter="ativos">Pedidos ativos</button>
+       <button class="outline-btn ${filter==='ativos'?'active':''}" type="button" data-order-filter="ativos">Pedidos em aberto</button>
+       ${admin?`<button class="outline-btn ${filter==='entregues'?'active':''}" type="button" data-order-filter="entregues">Pedidos entregues</button>`:''}
        <button class="outline-btn cancelled-filter ${filter==='cancelados'?'active':''}" type="button" data-order-filter="cancelados">Pedidos cancelados</button>
        <button class="outline-btn" id="refreshOrdersBtn">Atualizar</button>
      </div>
