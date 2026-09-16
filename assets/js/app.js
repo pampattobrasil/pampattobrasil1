@@ -20,8 +20,8 @@ const PRODUCT_IMAGE_MAP={
  'coracao de frango':'coracao-de-frango.jpg','costela bovina':'costela-bovina.jpg','costela suina':'costela-suina.jpg',
  'coxa de frango':'coxa-de-frango.jpg','coxa e sobrecoxa':'sobrecoxa-de-frango.jpg','sobrecoxa de frango':'sobrecoxa-de-frango.jpg',
  'coxao duro':'coxao-duro.jpg','coxao mole':'coxao-mole.jpg','copa lombo':'lombo-suino.jpg','cupim':'cupim.jpg',
- 'file de peito':'peito-de-frango.jpg','file de frango':'file-de-frango.jpg','frango em cubos':'file-de-frango.jpg',
- 'frango em iscas':'file-de-frango.jpg','frango inteiro':'frango-inteiro.jpg','hamburguer 36 un':'hamburguer.jpg',
+ 'file de peito':'peito-de-frango.jpg','file de frango':'file-de-frango.jpg','frango em cubos':'frango-em-cubos.jpg','frango em cubo':'frango-em-cubos.jpg',
+ 'frango em iscas':'file-de-frango.jpg','frango inteiro':'frango-inteiro.jpg','salsicha':'salsicha.jpg','hamburguer 36 un':'hamburguer.jpg',
  'hamburguer de frango':'hamburguer.jpg','hamburguer':'hamburguer.jpg','kibe':'kibe.jpg','lagarto':'lagarto.jpg',
  'linguica calabresa':'linguica-calabresa.jpg','linguica de frango':'linguica-toscana.jpg','linguica toscana':'linguica-toscana.jpg',
  'lombo suino':'lombo-suino.jpg','maminha':'maminha.jpg','meio da asa':'asa-de-frango.jpg','mocoto':'mocoto.jpg',
@@ -234,12 +234,16 @@ function productCard(p){
  const nome=String(p.nome||p.produto_nome||p.titulo||p.descricao||'Produto sem nome').trim();
  const imagem=resolveProductImage(p);
  const fallback=fallbackProductImage(p);
- const vendidoPorKg=!normalizeText(nome).includes('hamburguer');
+ const nomeNormalizado=normalizeText(nome);
+ const hamburguerFrango=nomeNormalizado.includes('hamburguer de frango');
+ const hamburguer36=nomeNormalizado.includes('hamburguer 36 un');
+ const vendidoPorKg=!nomeNormalizado.includes('hamburguer');
+ const unidadeBadge=(hamburguerFrango||hamburguer36)?'36 UN':(vendidoPorKg?'KG':'');
  const mostrarPreco=canSeePrices();
  return `<article class="product-card" data-product-id="${esc(p.id)}" data-product-name-value="${esc(nome)}">
    <img src="${esc(imagem||fallback)}" alt="${esc(nome)}" loading="lazy" decoding="async" onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='${fallback}'}">
    <h4 class="product-name" data-product-name title="${esc(nome)}" style="display:block!important;visibility:visible!important;opacity:1!important;color:#fff3c4!important;font-size:14px!important;line-height:1.25!important;margin:10px 8px 6px!important;min-height:35px!important;position:relative!important;z-index:2!important;">${esc(nome)}</h4>
-   ${vendidoPorKg?'<div class="product-unit-badge" title="Valor por quilograma">KG</div>':''}
+   ${unidadeBadge?`<div class="product-unit-badge" title="${unidadeBadge==='KG'?'Valor por quilograma':'Caixa com 36 unidades'}">${unidadeBadge}</div>`:''}
    <div class="product-meta"><div class="price">${mostrarPreco?money(p.valor):'<span class="price-hidden-label">Preço não exibido</span>'}</div></div>
    <div class="catalog-quantity-controls"><div class="catalog-stepper"><button type="button" data-q="minus">−</button><input type="number" min="0" max="999" value="0"><button type="button" data-q="plus">+</button></div><button type="button" class="btn" data-q="add">Incluir</button></div><div class="catalog-item-toast" role="status" aria-live="polite">Pedido incluído</div>
  </article>`
@@ -350,7 +354,7 @@ function blingProductInfo(nome=''){
 
  // Mantém o nome real do pedido quando não existe código confirmado
  // na relação do Bling fornecida. Não inventa SKU.
- const isUn=/hamburguer/i.test(nome)&&/36\s*un/i.test(nome);
+ const isUn=(/hamburguer/i.test(nome)&&/36\s*un/i.test(nome))||/hamburguer\s+de\s+frango/i.test(normalizeText(nome));
  return {sku:'',un:isUn?'UN':'KG',nome:String(nome||'Produto').trim()};
 }
 
