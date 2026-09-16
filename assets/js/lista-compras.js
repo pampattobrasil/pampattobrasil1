@@ -9,9 +9,46 @@ const LIST_STATUS={enviada:'Lista enviada',em_compra:'Em compra',comprada:'Compr
 const state={cart:[],orders:[],lists:[],channels:[],bound:false};
 const cartSyncTimers=new Map(),cartSyncChains=new Map(),cartPendingValues=new Map();
 const user=()=>window.PAMPATTO_CURRENT_USER||window.currentUser||null;
+const cartStorageKey=()=>{const u=user();return u?`pampatto_cart_draft_${String(u.id||u.usuario||'cliente')}`:null};
+function persistCartSnapshot(){
+ const key=cartStorageKey();if(!key)return;
+ try{localStorage.setItem(key,JSON.stringify({savedAt:new Date().toISOString(),items:state.cart||[]}))}catch(err){console.warn('Não foi possível preservar o rascunho do carrinho:',err)}
+}
+function loadCartSnapshot(){
+ const key=cartStorageKey();if(!key)return [];
+ try{const raw=localStorage.getItem(key);if(!raw)return [];const parsed=JSON.parse(raw);return Array.isArray(parsed?.items)?parsed.items:[]}catch(err){console.warn('Não foi possível ler o rascunho do carrinho:',err);return []}
+}
+function clearCartSnapshot(){const key=cartStorageKey();if(!key)return;try{localStorage.removeItem(key)}catch{}}
 function notice(msg,error=false){const el=$('cartNotice');if(el){el.className=error?'notice error':'notice';el.textContent=msg}}
-async function loadCart(){const u=user();if(!u)return;const {data,error}=await db().from('catalogo_carrinho_itens').select('*').eq('cliente_identificador',u.id).order('created_at');if(error)return notice(error.message,true);state.cart=data||[];renderCart()}
+async function loadCart(){
+ const u=user();if(!u)return;
+ const localDraft=loadCartSnapshot();
+ const {data,error}=await db().from('catalogo_carrinho_itens').select('*').eq('cliente_identificador',u.id).order('created_at');
+ if(error){
+   if(localDraft.length){state.cart=localDraft;renderCart();notice('Carrinho restaurado do rascunho local. Clique em “Salvar alterações” para sincronizar.',true);return}
+   return notice(error.message,true);
+ }
+ state.cart=data||[];
+ if(!state.cart.length&&localDraft.length){
+   let restored=false;
+   for(const item of localDraft){
+     const produto=window.PAMPATTO_STATE?.produtos?.find(p=>String(p.id)===String(item.produto_id)||String(p.nome)===String(item.produto_nome));
+     if(!produto)continue;
+     const {error:restoreError}=await db().rpc('pampatto_adicionar_item_carrinho',{
+       p_cliente_identificador:u.id,p_cliente_nome:u.nome,p_produto_id:produto.id,p_produto_nome:produto.nome,
+       p_imagem_url:produto.imagem_url||item.imagem_url||null,p_quantidade:normalizeCartQuantity(item.quantidade),p_valor_unitario:Number(produto.valor||item.valor_unitario||0)
+     });
+     if(!restoreError)restored=true;
+   }
+   if(restored){
+     const retry=await db().from('catalogo_carrinho_itens').select('*').eq('cliente_identificador',u.id).order('created_at');
+     if(!retry.error)state.cart=retry.data||[];
+   }
+ }
+ renderCart();
+}
 function renderCart(){
+ persistCartSnapshot();
  const target=$('cartView');if(!target)return;
  const u=user(),mostrarPrecos=u?.perfil==='admin'||u?.mostrar_precos!==false;
  const count=state.cart.reduce((s,i)=>s+Number(i.quantidade||0),0);
@@ -20,7 +57,21 @@ function renderCart(){
  const total=state.cart.reduce((s,i)=>s+Number(i.subtotal||0),0);
  target.innerHTML=`<div class="cart-items-list">${state.cart.map(i=>`<article class="cart-item-row" data-id="${i.id}"><div class="cart-item-main">${i.imagem_url?`<img src="${esc(i.imagem_url)}" alt="${esc(i.produto_nome)}">`:''}<div><strong>${esc(i.produto_nome)}</strong>${mostrarPrecos?`<span>${money(i.valor_unitario)} cada</span>`:''}</div></div><div class="catalog-stepper cart-stepper"><button type="button" data-action="minus" aria-label="Diminuir quantidade">−</button><input type="number" min="1" max="999" inputmode="numeric" value="${i.quantidade}" aria-label="Quantidade de ${esc(i.produto_nome)}"><button type="button" data-action="plus" aria-label="Aumentar quantidade">+</button></div>${mostrarPrecos?`<strong>${money(i.subtotal)}</strong>`:'<span class="price-hidden-label">Preço não exibido</span>'}<button type="button" class="outline-btn danger-outline" data-action="remove">Remover</button></article>`).join('')}</div>${mostrarPrecos?`<div class="cart-total"><span>Total do pedido</span><strong>${money(total)}</strong></div>`:'<div class="cart-total price-hidden-total"><span>Preços ocultos para este acesso</span></div>'}`
 }
-async function addCart(produtoId,quantidade){const u=user(),p=window.PAMPATTO_STATE?.produtos?.find(x=>String(x.id)===String(produtoId));if(!u||!p)return;const {error}=await db().rpc('pampatto_adicionar_item_carrinho',{p_cliente_identificador:u.id,p_cliente_nome:u.nome,p_produto_id:p.id,p_produto_nome:p.nome,p_imagem_url:p.imagem_url||null,p_quantidade:Math.max(1,Number(quantidade)||1),p_valor_unitario:Number(p.valor||0)});if(error)return alert(error.message);await loadCart();notice(`${p.nome} incluído no carrinho.`)}
+async function addCart(produtoId,quantidade){
+ const u=user(),p=window.PAMPATTO_STATE?.produtos?.find(x=>String(x.id)===String(produtoId));if(!u||!p)return;
+ const qtd=Math.max(1,Math.trunc(Number(quantidade)||1));
+ const existing=state.cart.find(i=>String(i.produto_id)===String(p.id)||String(i.produto_nome)===String(p.nome));
+ if(existing){
+   await changeItem(existing.id,Number(existing.quantidade||0)+qtd,{immediate:true});
+ }else{
+   const {error}=await db().rpc('pampatto_adicionar_item_carrinho',{p_cliente_identificador:u.id,p_cliente_nome:u.nome,p_produto_id:p.id,p_produto_nome:p.nome,p_imagem_url:p.imagem_url||null,p_quantidade:qtd,p_valor_unitario:Number(p.valor||0)});
+   if(error)return alert(error.message);
+   await loadCart();
+ }
+ persistCartSnapshot();
+ notice(`${p.nome} incluído no carrinho.`);
+ document.dispatchEvent(new CustomEvent('pampatto:cart-added',{detail:{produtoId:p.id,quantidade:qtd}}));
+}
 function normalizeCartQuantity(q){
  const n=Math.trunc(Number(q));
  if(!Number.isFinite(n))return 1;
@@ -86,6 +137,21 @@ async function flushPendingCartChanges(){
    for(const key of [...cartPendingValues.keys()])await syncCartItem(key);
  }
 }
+async function saveCart(){
+ const u=user();if(!u)return notice('Faça login novamente para salvar o carrinho.',true);
+ const btn=$('saveCartBtn');const original=btn?.textContent||'Salvar alterações';
+ if(btn){btn.disabled=true;btn.textContent='SALVANDO...'}
+ try{
+   await flushPendingCartChanges();
+   persistCartSnapshot();
+   await loadCart();
+   notice('Alterações do carrinho salvas. Você pode voltar e finalizar o pedido depois.');
+ }catch(err){
+   console.error('Erro ao salvar carrinho:',err);
+   notice(`Não foi possível salvar todas as alterações: ${err?.message||err}`,true);
+ }finally{if(btn){btn.disabled=false;btn.textContent=original}}
+}
+
 async function clearCart(){
  const u=user();if(!u)return;
  if(!state.cart.length)return notice('O carrinho já está vazio.');
@@ -95,7 +161,7 @@ async function clearCart(){
  if(cartSyncChains.size)await Promise.allSettled([...cartSyncChains.values()]);
  const {error}=await db().from('catalogo_carrinho_itens').delete().eq('cliente_identificador',u.id);
  if(error)return notice(error.message,true);
- state.cart=[];renderCart();
+ state.cart=[];clearCartSnapshot();renderCart();
  notice('Carrinho esvaziado.');
 }
 async function finish(){
@@ -116,6 +182,7 @@ async function finish(){
    const resultado=Array.isArray(data)?data[0]:data;
    if(!resultado?.pedido_id)throw new Error('O banco não devolveu a identificação do pedido.');
    state.cart=[];
+   clearCartSnapshot();
    renderCart();
    await Promise.all([loadCart(),loadOrders()]);
    await window.PAMPATTO_REFRESH_ALL?.();
@@ -506,6 +573,7 @@ function bind(){
    }
  });
  $('clearCartBtn')?.addEventListener('click',clearCart);
+ $('saveCartBtn')?.addEventListener('click',saveCart);
  $('finishCartBtn')?.addEventListener('click',finish);
  $('ordersContent')?.addEventListener('click',e=>{
    const card=e.target.closest('.order-card');
