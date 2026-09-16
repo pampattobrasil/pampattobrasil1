@@ -14,37 +14,55 @@ window.PAMPATTO_STATE=state;
 const categoryIcons={'Carnes Bovinas':'🥩','Carnes Suínas':'🐖','Carnes de Frango':'🍗','Miúdos de Frango':'🫀','Embutidos':'🌭','Industrializados':'🥫','Peixes':'🐟'};
 const cats=['Todos',...Object.keys(categoryIcons)];
 const PRODUCT_IMAGE_MAP={
- 'acem':'acem.jpg','almondegas':'almondegas.jpg','almondegas 29':'almondegas-29.jpg',
- 'bacon':'bacon.jpg','bacon especial magro':'bacon-especial-magro.jpg','carne moida':'carne-moida.jpg',
- 'contrafile':'contrafile.jpg','coracao':'coracao.jpg','costela bovina':'costela-bovina.jpg',
- 'costela suina':'costela-suina.jpg','coxa e sobrecoxa':'coxa-e-sobrecoxa.jpg','coxao duro':'coxao-duro.jpg',
- 'coxao mole':'coxao-mole.jpg','cupim':'cupim.jpg','figado':'figado.jpg','file de peito':'file-de-peito.jpg',
- 'file de peixe panga':'file-de-peixe-panga.jpg','frango em iscas':'frango-em-iscas.jpg','frango inteiro':'frango-inteiro.jpg',
- 'hamburguer 36 un':'hamburguer-36-un.jpg','hamburguer de frango':'hamburguer-de-frango.jpg',
- 'hamburguer':'hamburguer.jpg','lagarto':'lagarto.jpg','linguica calabresa':'linguica-calabresa.jpg',
- 'linguica de frango':'linguica-de-frango.jpg','linguica toscana':'linguica-toscana.jpg',
- 'meio da asa':'meio-da-asa.jpg','moela':'moela.jpg','patinho em bife':'patinho-em-bife.jpg','patinho em cubos':'patinho-em-cubos.jpg',
- 'patinho moido':'patinho-moido.jpg','pe de frango':'pe-de-frango.jpg','peito de frango':'peito-de-frango.jpg',
- 'pernil em cubos':'pernil-em-cubos.jpg','picanha':'picanha.jpg','salmao':'salmao.jpg','tilapia':'tilapia.jpg'
+ 'acem':'acem.jpg','alcatra':'alcatra.jpg','almondegas':'almondegas.jpg','almondegas 29':'almondegas.jpg',
+ 'bacon':'panceta.jpg','bacon especial magro':'panceta.jpg','bisteca suina':'bisteca-suina.jpg',
+ 'carne moida':'carne-moida.jpg','chambari':'chambari.jpg','contrafile':'contrafile.jpg','coracao':'coracao-de-frango.jpg',
+ 'coracao de frango':'coracao-de-frango.jpg','costela bovina':'costela-bovina.jpg','costela suina':'costela-suina.jpg',
+ 'coxa de frango':'coxa-de-frango.jpg','coxa e sobrecoxa':'sobrecoxa-de-frango.jpg','sobrecoxa de frango':'sobrecoxa-de-frango.jpg',
+ 'coxao duro':'coxao-duro.jpg','coxao mole':'coxao-mole.jpg','copa lombo':'lombo-suino.jpg','cupim':'cupim.jpg',
+ 'file de peito':'peito-de-frango.jpg','file de frango':'file-de-frango.jpg','frango em cubos':'file-de-frango.jpg',
+ 'frango em iscas':'file-de-frango.jpg','frango inteiro':'frango-inteiro.jpg','hamburguer 36 un':'hamburguer.jpg',
+ 'hamburguer de frango':'hamburguer.jpg','hamburguer':'hamburguer.jpg','kibe':'kibe.jpg','lagarto':'lagarto.jpg',
+ 'linguica calabresa':'linguica-calabresa.jpg','linguica de frango':'linguica-toscana.jpg','linguica toscana':'linguica-toscana.jpg',
+ 'lombo suino':'lombo-suino.jpg','maminha':'maminha.jpg','meio da asa':'asa-de-frango.jpg','mocoto':'mocoto.jpg',
+ 'musculo':'musculo.jpg','orelha suina':'orelha-suina.jpg','panceta':'panceta.jpg','patinho':'patinho.jpg',
+ 'patinho em bife':'patinho.jpg','patinho em cubo':'patinho.jpg','patinho em cubos':'patinho.jpg','patinho moido':'carne-moida.jpg',
+ 'pe de frango':'coxa-de-frango.jpg','pe salgado':'pernil-suino.jpg','peito de frango':'peito-de-frango.jpg',
+ 'pernil em cubos':'pernil-suino.jpg','pernil em cubo':'pernil-suino.jpg','pernil suino':'pernil-suino.jpg',
+ 'picanha':'picanha.jpg','toucinho':'toucinho.jpg','fraldinha':'fraldinha.jpg',
+ 'asa de frango':'asa-de-frango.jpg','tilapia':'tilapia.jpg','salmao':'salmao.jpg','merluza':'merluza.jpg',
+ 'camarao':'camarao.jpg','lula':'lula.jpg','polvo':'polvo.jpg','bacalhau':'bacalhau.jpg',
+ 'file de peixe panga':'merluza.jpg','figado':'musculo.jpg','moela':'coracao-de-frango.jpg'
 };
 function normalizeText(v=''){return String(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()}
-function resolveProductImage(product){
- const raw=String(product.imagem_url||product.imagem||product.foto_url||product.foto||'').trim();
- const looksLikeLogo=!raw||/logo(?:\.jpg|\.png)?(?:\?|$)/i.test(raw);
- if(!looksLikeLogo)return raw;
- const key=normalizeText(product.nome||product.produto_nome||product.titulo||'');
- const exact=PRODUCT_IMAGE_MAP[key];
- if(exact)return `assets/images/${exact}`;
- const partial=Object.keys(PRODUCT_IMAGE_MAP).sort((a,b)=>b.length-a.length).find(k=>key.includes(k)||k.includes(key));
- return partial?`assets/images/${PRODUCT_IMAGE_MAP[partial]}`:'assets/images/logo.jpg';
+const CATEGORY_FALLBACK_IMAGE={
+ 'Carnes Bovinas':'patinho.jpg',
+ 'Carnes Suínas':'pernil-suino.jpg',
+ 'Carnes de Frango':'peito-de-frango.jpg',
+ 'Miúdos de Frango':'coracao-de-frango.jpg',
+ 'Embutidos':'linguica-toscana.jpg',
+ 'Industrializados':'hamburguer.jpg',
+ 'Peixes':'tilapia.jpg'
+};
+function fallbackProductImage(product){
+ const tipo=String(product?.tipo||product?.categoria||product?.grupo||'').trim();
+ const file=CATEGORY_FALLBACK_IMAGE[tipo]||'patinho.jpg';
+ return `assets/images/${file}`;
 }
-
-function resolveLocalProductImage(product){
+function localImageFromName(product){
  const key=normalizeText(product?.nome||product?.produto_nome||product?.titulo||'');
  const exact=PRODUCT_IMAGE_MAP[key];
  if(exact)return `assets/images/${exact}`;
  const partial=Object.keys(PRODUCT_IMAGE_MAP).sort((a,b)=>b.length-a.length).find(k=>key.includes(k)||k.includes(key));
- return partial?`assets/images/${PRODUCT_IMAGE_MAP[partial]}`:'assets/images/logo.jpg';
+ return partial?`assets/images/${PRODUCT_IMAGE_MAP[partial]}`:fallbackProductImage(product);
+}
+function resolveProductImage(product){
+ // Prioriza sempre a imagem local do catálogo. Isso evita que logos/imagens antigas
+ // salvas no Supabase substituam as fotos corretas da pasta assets/images.
+ return localImageFromName(product);
+}
+function resolveLocalProductImage(product){
+ return localImageFromName(product);
 }
 
 async function loadRemoteImageForProduct(product){
@@ -80,25 +98,9 @@ async function loadRemoteImageForProduct(product){
 
 let imageHydrationTimer=null;
 function hydrateProductImagesInBackground(){
- if(imageHydrationTimer)clearTimeout(imageHydrationTimer);
- imageHydrationTimer=setTimeout(async()=>{
-   // Só consulta o banco para produtos sem imagem local conhecida.
-   const pendentes=state.produtos.filter(p=>{
-     const local=resolveLocalProductImage(p);
-     return /assets\/images\/logo\.jpg$/i.test(local) && !p._dbImageLoaded;
-   });
-
-   // Baixa uma imagem por vez para evitar novas consultas pesadas.
-   for(const p of pendentes){
-     await loadRemoteImageForProduct(p);
-   }
-
-   if(pendentes.length){
-     renderProductArea('dashProducts');
-     renderProductArea('produtosView');
-     renderStock();
-   }
- },350);
+ // As imagens locais são a fonte oficial do catálogo.
+ // Não buscamos imagem_url do banco para evitar substituir a foto pelo logo antigo.
+ return;
 }
 function dedupeProducts(rows){
  const map=new Map();
@@ -231,7 +233,7 @@ function catButtons(){return `<div class="category-buttons">${cats.map(c=>`<butt
 function productCard(p){
  const nome=String(p.nome||p.produto_nome||p.titulo||p.descricao||'Produto sem nome').trim();
  const imagem=resolveProductImage(p);
- const fallback='assets/images/logo.jpg';
+ const fallback=fallbackProductImage(p);
  const vendidoPorKg=!normalizeText(nome).includes('hamburguer');
  const mostrarPreco=canSeePrices();
  return `<article class="product-card" data-product-id="${esc(p.id)}" data-product-name-value="${esc(nome)}">
@@ -252,7 +254,7 @@ function renderStock(){
  if(headRow)headRow.innerHTML='<th>Foto</th><th>Produto</th><th>Categoria</th><th>Valor</th><th>Ações</th>';
  const termo=($('busca')?.value||'').toLowerCase();
  const list=state.produtos.filter(p=>`${p.nome} ${p.tipo}`.toLowerCase().includes(termo));
- $('tbody').innerHTML=list.map(p=>`<tr><td><img class="thumb" src="${esc(resolveProductImage(p))}" alt="${esc(p.nome)}" loading="lazy" decoding="async" onerror="this.src='assets/images/logo.jpg'"></td><td><strong>${esc(p.nome)}</strong><br><span class="muted">${esc(p.fabricante||'')}</span></td><td><span class="tag">${esc(p.tipo)}</span></td><td><input class="stock-edit" id="stock-price-${p.id}" type="number" min="0" step="0.01" value="${Number(p.valor||0).toFixed(2)}"></td><td><div class="actions"><button class="mini-btn" data-save-stock="${p.id}">Salvar valor</button><button class="mini-btn" data-edit-product="${p.id}">Editar dados</button></div><span class="stock-save-ok" id="stock-ok-${p.id}"></span></td></tr>`).join('')||'<tr><td colspan="5" class="empty">Nenhum produto encontrado.</td></tr>';
+ $('tbody').innerHTML=list.map(p=>`<tr><td><img class="thumb" src="${esc(resolveProductImage(p))}" alt="${esc(p.nome)}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='assets/images/patinho.jpg'"></td><td><strong>${esc(p.nome)}</strong><br><span class="muted">${esc(p.fabricante||'')}</span></td><td><span class="tag">${esc(p.tipo)}</span></td><td><input class="stock-edit" id="stock-price-${p.id}" type="number" min="0" step="0.01" value="${Number(p.valor||0).toFixed(2)}"></td><td><div class="actions"><button class="mini-btn" data-save-stock="${p.id}">Salvar valor</button><button class="mini-btn" data-edit-product="${p.id}">Editar dados</button></div><span class="stock-save-ok" id="stock-ok-${p.id}"></span></td></tr>`).join('')||'<tr><td colspan="5" class="empty">Nenhum produto encontrado.</td></tr>';
 }
 function renderUsers(){
  if(!isAdmin()||!$('usersBody'))return;
