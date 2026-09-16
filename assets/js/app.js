@@ -239,7 +239,7 @@ function productCard(p){
    <h4 class="product-name" data-product-name title="${esc(nome)}" style="display:block!important;visibility:visible!important;opacity:1!important;color:#fff3c4!important;font-size:14px!important;line-height:1.25!important;margin:10px 8px 6px!important;min-height:35px!important;position:relative!important;z-index:2!important;">${esc(nome)}</h4>
    ${vendidoPorKg?'<div class="product-unit-badge" title="Valor por quilograma">KG</div>':''}
    <div class="product-meta"><div class="price">${mostrarPreco?money(p.valor):'<span class="price-hidden-label">Preço não exibido</span>'}</div></div>
-   <div class="catalog-quantity-controls"><div class="catalog-stepper"><button type="button" data-q="minus">−</button><input type="number" min="1" max="999" value="1"><button type="button" data-q="plus">+</button></div><button type="button" class="btn" data-q="add">Incluir</button></div>
+   <div class="catalog-quantity-controls"><div class="catalog-stepper"><button type="button" data-q="minus">−</button><input type="number" min="0" max="999" value="0"><button type="button" data-q="plus">+</button></div><button type="button" class="btn" data-q="add">Incluir</button></div><div class="catalog-item-toast" role="status" aria-live="polite">Pedido incluído</div>
  </article>`
 }
 function renderProductArea(id){
@@ -934,17 +934,38 @@ function catalogClick(e){
 
  const input=card.querySelector('input[type=number]');
  const action=e.target.dataset.q;
- if(action==='minus')input.value=Math.max(1,Number(input.value||1)-1);
- if(action==='plus')input.value=Math.min(999,Number(input.value||1)+1);
+ if(action==='minus')input.value=Math.max(0,Number(input.value||0)-1);
+ if(action==='plus')input.value=Math.min(999,Number(input.value||0)+1);
  if(action==='add'){
+   const quantidade=Math.max(0,Math.trunc(Number(input.value||0)));
+   if(!quantidade){
+     input.focus();
+     return;
+   }
    document.dispatchEvent(new CustomEvent('pampatto:add-cart',{
      detail:{
        produtoId:card.dataset.productId,
-       quantidade:Number(input.value||1)
+       quantidade,
+       sourceCard:card
      }
    }));
  }
 }
+
+document.addEventListener('pampatto:cart-added',e=>{
+ const produtoId=String(e.detail?.produtoId||'');
+ document.querySelectorAll(`[data-product-id="${CSS.escape(produtoId)}"]`).forEach(card=>{
+   const input=card.querySelector('.catalog-stepper input');
+   if(input)input.value='0';
+   const toast=card.querySelector('.catalog-item-toast');
+   if(!toast)return;
+   toast.classList.remove('show');
+   void toast.offsetWidth;
+   toast.classList.add('show');
+   clearTimeout(toast.__hideTimer);
+   toast.__hideTimer=setTimeout(()=>toast.classList.remove('show'),2000);
+ });
+});
 
 async function init(){
  bind();const modal=$('orderSuccessModal');if(modal){modal.classList.remove('open');modal.style.display='none'}
