@@ -60,3 +60,17 @@
 
 /* Inclusões: conferência de entregas */
 .delivery-item-row{display:flex;align-items:center;gap:12px}.delivery-item-row>span:first-child{flex:1}.delivery-check-label{display:inline-flex;align-items:center;justify-content:center;min-width:45px}.delivery-check-label input{position:absolute;opacity:0;width:1px;height:1px}.delivery-check-mark{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:2px solid #aaa;border-radius:6px;color:transparent;cursor:pointer;font-weight:bold}.delivery-check-label input:checked+.delivery-check-mark{background:#168a3b;border-color:#168a3b;color:white}.delivery-check-label input:focus-visible+.delivery-check-mark{outline:2px solid currentColor;outline-offset:3px}.delivery-check-label input:disabled+.delivery-check-mark{cursor:default;opacity:.8}
+
+/* Ajustes pontuais de alinhamento, sem alterar a paleta existente */
+.order-number-line{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.order-number-line .mini-btn{white-space:nowrap}
+.delivery-check-mark::after{content:""}
+.delivery-check-label input:checked+.delivery-check-mark::after{content:"✓";font-size:17px;line-height:1;color:#fff}
+.order-admin-status{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.order-admin-status .delivery-save-button{order:-1;margin-right:auto}
+.client-action-grid{display:grid;grid-template-columns:repeat(2,minmax(92px,1fr));gap:6px;align-items:stretch;min-width:204px}
+.client-action-grid .mini-btn{width:100%;margin:0;min-height:34px;white-space:nowrap;padding:6px 8px;text-align:center}
+.client-action-grid .muted{grid-column:1/-1;text-align:center;align-self:center}
+#usersBody td{vertical-align:middle}
+#usersBody td:nth-child(3){min-width:155px;max-width:270px;overflow-wrap:anywhere}
+#clientEditModal{z-index:99999!important}
