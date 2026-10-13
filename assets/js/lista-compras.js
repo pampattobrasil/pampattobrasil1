@@ -393,12 +393,12 @@ function openOrderQuantityModal(card,itemId){
    const newSubtotal=Math.round(quantity*unit*100)/100;
    const oldSubtotal=Number(item.subtotal??Number(item.quantidade)*unit);
    const newTotal=Math.round((Number(order.valor_total||0)-oldSubtotal+newSubtotal)*100)/100;
-   const {data:updated,error:itemError}=await db().from('catalogo_pedido_itens').update({quantidade:quantity,subtotal:newSubtotal}).eq('id',item.id).eq('pedido_id',order.id).select('id');
+   const {data:updated,error:itemError}=await db().from('catalogo_pedido_itens').update({quantidade:quantity}).eq('id',item.id).eq('pedido_id',order.id).select('id');
    if(itemError)throw itemError;
    if(!updated?.length)throw new Error('O banco não autorizou a atualização do item.');
    const {data:updatedOrder,error:orderError}=await db().from('catalogo_pedidos').update({valor_total:newTotal}).eq('id',order.id).select('id');
    if(orderError||!updatedOrder?.length){
-    const rollback=await db().from('catalogo_pedido_itens').update({quantidade:item.quantidade,subtotal:oldSubtotal}).eq('id',item.id);
+    const rollback=await db().from('catalogo_pedido_itens').update({quantidade:item.quantidade}).eq('id',item.id);
     throw new Error((orderError?.message||'Não foi possível atualizar o total do pedido.')+(rollback.error?' Verifique o item no banco antes de tentar novamente.':''));
    }
    close();await loadOrders(state.orderFilter);
