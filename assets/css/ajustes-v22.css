@@ -57,3 +57,6 @@
 .price-hidden-total{
   justify-content:flex-end!important;
 }
+
+/* Inclusões: conferência de entregas */
+.delivery-item-row{display:flex;align-items:center;gap:12px}.delivery-item-row>span:first-child{flex:1}.delivery-check-label{display:inline-flex;align-items:center;justify-content:center;min-width:45px}.delivery-check-label input{position:absolute;opacity:0;width:1px;height:1px}.delivery-check-mark{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:2px solid #aaa;border-radius:6px;color:transparent;cursor:pointer;font-weight:bold}.delivery-check-label input:checked+.delivery-check-mark{background:#168a3b;border-color:#168a3b;color:white}.delivery-check-label input:focus-visible+.delivery-check-mark{outline:2px solid currentColor;outline-offset:3px}.delivery-check-label input:disabled+.delivery-check-mark{cursor:default;opacity:.8}
