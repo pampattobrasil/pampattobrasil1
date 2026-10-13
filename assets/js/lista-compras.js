@@ -359,7 +359,7 @@ async function loadOrders(filter=state.orderFilter||'ativos'){
        </div>
        ${(!cancelled&&!completed)?deliveryDeadlineInfo(o.created_at).html:''}
        ${cancelled?'':timeline(normalizedStatus)}
-       <div class="order-items">${(o.catalogo_pedido_itens||[]).sort((a,b)=>Number(a.ordem||0)-Number(b.ordem||0)).map(i=>`<div class="delivery-item-row"><span>${i.quantidade}× ${esc(i.produto_nome)}</span>${admin?`<label class="delivery-check-label"><input type="checkbox" data-delivery-id="${esc(i.id)}" ${i.entregue?'checked':''} ${completed||cancelled?'disabled':''}><span class="delivery-check-mark" aria-hidden="true"></span></label>`:''}${mostrarPrecos?`<strong>${money(i.subtotal??(Number(i.quantidade||0)*Number(i.valor_unitario||0)))}</strong>`:''}</div>`).join('')}</div>
+       <div class="order-items">${(o.catalogo_pedido_itens||[]).sort((a,b)=>Number(a.ordem||0)-Number(b.ordem||0)).map(i=>`<div class="delivery-item-row"><span>${admin&&!completed&&!cancelled?`<button type="button" class="order-quantity-edit" data-edit-quantity="${esc(i.id)}" title="Editar quantidade deste item">${i.quantidade}× ${esc(i.produto_nome)}</button>`:`${i.quantidade}× ${esc(i.produto_nome)}`}</span>${admin?`<label class="delivery-check-label"><input type="checkbox" data-delivery-id="${esc(i.id)}" ${i.entregue?'checked':''} ${completed||cancelled?'disabled':''}><span class="delivery-check-mark" aria-hidden="true"></span></label>`:''}${mostrarPrecos?`<strong>${money(i.subtotal??(Number(i.quantidade||0)*Number(i.valor_unitario||0)))}</strong>`:''}</div>`).join('')}</div>
        ${cancelled?'':`<div class="order-card-actions">
          ${u.perfil==='admin'?`<div class="order-admin-status">${!completed&&!cancelled?'<button class="btn delivery-save-button" data-save-deliveries type="button" style="display:none">Salvar itens</button>':''}<label>Alterar status</label><select data-status>${Object.entries(STATUS).filter(([k])=>k!=='cancelado').map(([k,v])=>`<option value="${k}" ${normalizedStatus===k?'selected':''}>${v}</option>`).join('')}</select><button class="btn status-save-button" type="button" data-save-status>Salvar status</button></div>`:''}
          <button class="outline-btn order-delete-button" type="button" data-delete-order>Cancelar pedido</button>
@@ -370,6 +370,43 @@ async function loadOrders(filter=state.orderFilter||'ativos'){
 
  target.querySelectorAll('[data-order-filter]').forEach(btn=>btn.addEventListener('click',()=>loadOrders(btn.dataset.orderFilter)));
  $('refreshOrdersBtn')?.addEventListener('click',()=>loadOrders(state.orderFilter));
+}
+function openOrderQuantityModal(card,itemId){
+ if(user()?.perfil!=='admin')return;
+ const order=state.orders.find(o=>String(o.id)===String(card.dataset.orderId));
+ const item=order?.catalogo_pedido_itens?.find(i=>String(i.id)===String(itemId));
+ if(!item||['concluido','cancelado','entregue'].includes(normalizeOrderStatus(order.status)))return;
+ document.getElementById('pampattoQuantityModal')?.remove();
+ const overlay=document.createElement('div');overlay.id='pampattoQuantityModal';overlay.className='pampatto-quantity-overlay';
+ overlay.innerHTML=`<div class="pampatto-quantity-dialog" role="dialog" aria-modal="true" aria-labelledby="pampattoQuantityTitle"><h3 id="pampattoQuantityTitle">Editar quantidade</h3><p>${esc(item.produto_nome)}</p><label for="pampattoQuantityInput">Quantidade do item</label><input id="pampattoQuantityInput" type="number" min="1" max="999999" step="1" required value="${Number(item.quantidade)}"><div class="pampatto-quantity-actions"><button type="button" class="outline-btn" data-close-quantity>Cancelar</button><button type="button" class="btn" data-confirm-quantity>Salvar quantidade</button></div></div>`;
+ document.body.appendChild(overlay);
+ const close=()=>overlay.remove();
+ overlay.querySelector('[data-close-quantity]').addEventListener('click',close);
+ overlay.addEventListener('click',e=>{if(e.target===overlay)close()});
+ const input=overlay.querySelector('#pampattoQuantityInput');input.focus();input.select();
+ const save=async()=>{
+  const quantity=Number(input.value);
+  if(!Number.isSafeInteger(quantity)||quantity<1||quantity>999999)return alert('Informe uma quantidade inteira entre 1 e 999999.');
+  const button=overlay.querySelector('[data-confirm-quantity]');button.disabled=true;
+  try{
+   const unit=Number(item.valor_unitario||0);
+   const newSubtotal=Math.round(quantity*unit*100)/100;
+   const oldSubtotal=Number(item.subtotal??Number(item.quantidade)*unit);
+   const newTotal=Math.round((Number(order.valor_total||0)-oldSubtotal+newSubtotal)*100)/100;
+   const {data:updated,error:itemError}=await db().from('catalogo_pedido_itens').update({quantidade:quantity,subtotal:newSubtotal}).eq('id',item.id).eq('pedido_id',order.id).select('id');
+   if(itemError)throw itemError;
+   if(!updated?.length)throw new Error('O banco não autorizou a atualização do item.');
+   const {data:updatedOrder,error:orderError}=await db().from('catalogo_pedidos').update({valor_total:newTotal}).eq('id',order.id).select('id');
+   if(orderError||!updatedOrder?.length){
+    const rollback=await db().from('catalogo_pedido_itens').update({quantidade:item.quantidade,subtotal:oldSubtotal}).eq('id',item.id);
+    throw new Error((orderError?.message||'Não foi possível atualizar o total do pedido.')+(rollback.error?' Verifique o item no banco antes de tentar novamente.':''));
+   }
+   close();await loadOrders(state.orderFilter);
+   await window.PAMPATTO_REFRESH_ALL?.();
+  }catch(err){alert('Não foi possível salvar a quantidade: '+err.message)}finally{button.disabled=false}
+ };
+ overlay.querySelector('[data-confirm-quantity]').addEventListener('click',save);
+ input.addEventListener('keydown',e=>{if(e.key==='Enter')save();if(e.key==='Escape')close()});
 }
 async function saveDeliveries(card,btn){
  const checks=[...card.querySelectorAll('[data-delivery-id]')];if(!checks.length)return;
@@ -620,6 +657,8 @@ function bind(){
  $('ordersContent')?.addEventListener('click',e=>{
    const card=e.target.closest('.order-card');
    if(!card)return;
+   const quantityButton=e.target.closest('[data-edit-quantity]');
+   if(quantityButton)openOrderQuantityModal(card,quantityButton.dataset.editQuantity);
    if(e.target.matches('[data-romaneio]'))createRomaneio(card);
    if(e.target.matches('[data-save-deliveries]'))saveDeliveries(card,e.target);
    if(e.target.matches('[data-save-status]'))saveStatus(card,e.target);
