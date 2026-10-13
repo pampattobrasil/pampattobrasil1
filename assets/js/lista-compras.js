@@ -297,7 +297,7 @@ async function loadOrders(filter=state.orderFilter||'ativos'){
  state.orderFilter=filter;
  const admin=u.perfil==='admin';
  let q=db().from('catalogo_pedidos')
-   .select('id,numero_pedido,sequencial,cliente_identificador,cliente_nome,status,valor_total,created_at,catalogo_pedido_itens(id,produto_nome,quantidade,valor_unitario,subtotal,ordem)')
+   .select('id,numero_pedido,sequencial,cliente_identificador,cliente_nome,status,valor_total,created_at,catalogo_pedido_itens(id,produto_nome,quantidade,valor_unitario,subtotal,ordem,entregue)')
    .order('created_at',{ascending:true});
 
  // Administrador: sem limite, para exibir todos os pedidos do filtro.
@@ -317,6 +317,9 @@ async function loadOrders(filter=state.orderFilter||'ativos'){
  if(error){target.innerHTML=`<div class="notice error">${esc(error.message)}</div>`;return}
  state.orders=data||[];
  const mostrarPrecos=admin||u.mostrar_precos!==false;
+ const ids=[...new Set(state.orders.map(o=>String(o.cliente_identificador)).filter(Boolean))];
+ let enderecos={};
+ if(ids.length){const result=await db().from('usuarios').select('id,endereco').in('id',ids);if(!result.error)enderecos=Object.fromEntries((result.data||[]).map(x=>[String(x.id),x.endereco||'']));}
 
  const descricao=admin
    ? (filter==='ativos'?'Todos os pedidos em aberto são exibidos, sem limite de quantidade.':filter==='entregues'?'Pedidos entregues/concluídos para consulta e controle.':'Pedidos cancelados para consulta e controle.')
@@ -346,16 +349,18 @@ async function loadOrders(filter=state.orderFilter||'ativos'){
            <div class="shopping-list-meta">
              <span>${new Date(o.created_at).toLocaleString('pt-BR')}</span>
              <span>Cliente: <strong>${esc(o.cliente_nome||u.nome||'Cliente')}</strong></span>
+             <span>Endereço: ${esc(enderecos[String(o.cliente_identificador)]||'Não informado')}</span>
            </div>
          </div>
          <div class="order-value-status">
-           ${mostrarPrecos?`<strong>${money(o.valor_total)}</strong>`:''}
+           ${mostrarPrecos?`<strong>${money(o.valor_total)}</strong>`:''} <button type="button" class="mini-btn" data-romaneio>Romaneio</button>
            <div><span class="tag ${completed?'status-completed':cancelled?'status-cancelled':''}">${esc(STATUS[normalizedStatus]||'Pedido realizado')}</span></div>
          </div>
        </div>
        ${(!cancelled&&!completed)?deliveryDeadlineInfo(o.created_at).html:''}
        ${cancelled?'':timeline(normalizedStatus)}
-       <div class="order-items">${(o.catalogo_pedido_itens||[]).sort((a,b)=>Number(a.ordem||0)-Number(b.ordem||0)).map(i=>`<div><span>${i.quantidade}× ${esc(i.produto_nome)}</span>${mostrarPrecos?`<strong>${money(i.subtotal??(Number(i.quantidade||0)*Number(i.valor_unitario||0)))}</strong>`:''}</div>`).join('')}</div>
+       <div class="order-items">${(o.catalogo_pedido_itens||[]).sort((a,b)=>Number(a.ordem||0)-Number(b.ordem||0)).map(i=>`<div class="delivery-item-row"><span>${i.quantidade}× ${esc(i.produto_nome)}</span>${admin?`<label class="delivery-check-label"><input type="checkbox" data-delivery-id="${esc(i.id)}" ${i.entregue?'checked':''} ${completed||cancelled?'disabled':''}><span class="delivery-check-mark">✓</span></label>`:''}${mostrarPrecos?`<strong>${money(i.subtotal??(Number(i.quantidade||0)*Number(i.valor_unitario||0)))}</strong>`:''}</div>`).join('')}</div>
+       ${admin&&!completed&&!cancelled?'<button class="btn delivery-save-button" data-save-deliveries type="button" style="display:none">Salvar entregas</button>':''}
        ${cancelled?'':`<div class="order-card-actions">
          ${u.perfil==='admin'?`<div class="order-admin-status"><label>Alterar status</label><select data-status>${Object.entries(STATUS).filter(([k])=>k!=='cancelado').map(([k,v])=>`<option value="${k}" ${normalizedStatus===k?'selected':''}>${v}</option>`).join('')}</select><button class="btn status-save-button" type="button" data-save-status>Salvar status</button></div>`:''}
          <button class="outline-btn order-delete-button" type="button" data-delete-order>Cancelar pedido</button>
@@ -367,9 +372,43 @@ async function loadOrders(filter=state.orderFilter||'ativos'){
  target.querySelectorAll('[data-order-filter]').forEach(btn=>btn.addEventListener('click',()=>loadOrders(btn.dataset.orderFilter)));
  $('refreshOrdersBtn')?.addEventListener('click',()=>loadOrders(state.orderFilter));
 }
+async function saveDeliveries(card,btn){
+ const checks=[...card.querySelectorAll('[data-delivery-id]')];if(!checks.length)return;
+ btn.disabled=true;
+ try{
+   for(const check of checks){const {error}=await db().from('catalogo_pedido_itens').update({entregue:check.checked}).eq('id',check.dataset.deliveryId);if(error)throw error;}
+   await loadOrders();
+ }catch(err){alert('Não foi possível salvar as entregas: '+err.message)}finally{btn.disabled=false}
+}
+function createRomaneio(card){
+ const order=state.orders.find(o=>String(o.id)===String(card.dataset.orderId));if(!order)return;
+ const jspdf=window.jspdf;if(!jspdf?.jsPDF)return alert('Biblioteca PDF não disponível.');
+ const doc=new jspdf.jsPDF();const numero=order.numero_pedido||formatExistingNumber(order.created_at,order.sequencial);
+ const endereco=card.querySelector('.shopping-list-meta span:last-child')?.textContent||'';
+ doc.setFontSize(16);doc.text('ROMANEIO DE ENTREGA',14,20);
+ doc.setFontSize(11);doc.text('Pedido nº: '+numero,14,33);
+ doc.text('Cliente: '+String(order.cliente_nome||'Cliente'),14,41,{maxWidth:180});
+ const linhas=doc.splitTextToSize(endereco,180);doc.text(linhas,14,49);
+ let y=49+linhas.length*6;
+ doc.text('Data do pedido: '+new Date(order.created_at).toLocaleDateString('pt-BR'),14,y);y+=8;
+ doc.text('Data de entrada: ____/____/________',14,y);y+=7;
+ const items=(order.catalogo_pedido_itens||[]).slice().sort((a,b)=>Number(a.ordem||0)-Number(b.ordem||0));
+ doc.autoTable({startY:y,head:[['Produto','Quantidade']],body:items.map(i=>[String(i.produto_nome),String(i.quantidade)]),theme:'grid',styles:{fontSize:10},headStyles:{fillColor:[55,55,55]}});
+ y=Math.max(doc.lastAutoTable.finalY+30,doc.internal.pageSize.height-48);
+ if(y>doc.internal.pageSize.height-20){doc.addPage();y=50;}
+ doc.line(14,y,94,y);doc.line(116,y,196,y);
+ doc.setFontSize(10);doc.text('Assinatura do gerente',54,y+6,{align:'center'});doc.text('Assinatura do entregador',156,y+6,{align:'center'});
+ doc.save('romaneio-pedido-'+String(numero).replace(/[^a-zA-Z0-9-]/g,'')+'.pdf');
+}
 async function saveStatus(card,btn){
  const novoStatus=card.querySelector('[data-status]')?.value;
  if(!novoStatus)return;
+ if(novoStatus==='concluido'){
+  if(card.querySelector('[data-save-deliveries]')?.style.display!=='none')return alert('Salve as confirmações de entrega antes de concluir o pedido.');
+  const {data,error}=await db().from('catalogo_pedido_itens').select('id,entregue').eq('pedido_id',card.dataset.orderId);
+  if(error)return alert('Não foi possível verificar as entregas: '+error.message);
+  if(!data?.length||data.some(i=>!i.entregue))return alert('Todos os itens precisam estar marcados como entregues antes de concluir o pedido.');
+ }
  const original=btn.textContent;
  btn.disabled=true;
  btn.textContent='Salvando...';
@@ -575,9 +614,12 @@ function bind(){
  $('clearCartBtn')?.addEventListener('click',clearCart);
  $('saveCartBtn')?.addEventListener('click',saveCart);
  $('finishCartBtn')?.addEventListener('click',finish);
+ $('ordersContent')?.addEventListener('change',e=>{if(e.target.matches('[data-delivery-id]')){const card=e.target.closest('.order-card');const btn=card?.querySelector('[data-save-deliveries]');if(btn)btn.style.display='inline-flex';}});
  $('ordersContent')?.addEventListener('click',e=>{
    const card=e.target.closest('.order-card');
    if(!card)return;
+   if(e.target.matches('[data-romaneio]'))createRomaneio(card);
+   if(e.target.matches('[data-save-deliveries]'))saveDeliveries(card,e.target);
    if(e.target.matches('[data-save-status]'))saveStatus(card,e.target);
    if(e.target.matches('[data-delete-order]'))deleteOrder(card,e.target);
  });
