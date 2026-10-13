@@ -258,7 +258,7 @@ function renderStock(){
  if(headRow)headRow.innerHTML='<th>Foto</th><th>Produto</th><th>Categoria</th><th>Valor</th><th>Ações</th>';
  const termo=($('busca')?.value||'').toLowerCase();
  const list=state.produtos.filter(p=>`${p.nome} ${p.tipo}`.toLowerCase().includes(termo));
- $('tbody').innerHTML=list.map(p=>`<tr><td><img class="thumb" src="${esc(resolveProductImage(p))}" alt="${esc(p.nome)}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='assets/images/patinho.jpg'"></td><td><strong>${esc(p.nome)}</strong><br><span class="muted">${esc(p.fabricante||'')}</span></td><td><span class="tag">${esc(p.tipo)}</span></td><td><input class="stock-edit" id="stock-price-${p.id}" type="number" min="0" step="0.01" value="${Number(p.valor||0).toFixed(2)}"></td><td><div class="actions"><button class="mini-btn" data-save-stock="${p.id}">Salvar valor</button><button class="mini-btn" data-edit-product="${p.id}">Editar dados</button></div><span class="stock-save-ok" id="stock-ok-${p.id}"></span></td></tr>`).join('')||'<tr><td colspan="5" class="empty">Nenhum produto encontrado.</td></tr>';
+ $('tbody').innerHTML=list.map(p=>`<tr><td><img class="thumb" src="${esc(resolveProductImage(p))}" alt="${esc(p.nome)}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='assets/images/patinho.jpg'"></td><td><strong>${esc(p.nome)}</strong><br><span class="muted">${esc(p.fabricante||'')}</span></td><td><span class="tag">${esc(p.tipo)}</span></td><td><input class="stock-edit" id="stock-price-${p.id}" type="number" min="0" step="0.01" value="${Number(p.valor||0).toFixed(2)}"></td><td><div class="actions"><button class="mini-btn" data-save-stock="${p.id}">Salvar valor</button><button class="mini-btn" data-edit-product="${p.id}">Editar dados</button><button class="mini-btn danger" data-delete-stock="${p.id}">Excluir</button></div><span class="stock-save-ok" id="stock-ok-${p.id}"></span></td></tr>`).join('')||'<tr><td colspan="5" class="empty">Nenhum produto encontrado.</td></tr>';
 }
 function renderUsers(){
  if(!isAdmin()||!$('usersBody'))return;
@@ -622,6 +622,19 @@ function openTab(tab){if(['estoque','empresa','relatorios','logs','acompanhar-li
 window.openTab=openTab;
 
 async function saveStock(id){const valor=Number($('stock-price-'+id)?.value);if(!Number.isFinite(valor)||valor<0)return alert('Informe um valor válido.');const {error}=await requireDb().from('produtos').update({valor,updated_at:new Date().toISOString()}).eq('id',id);if(error)return alert(error.message);await loadProducts();renderAll()}
+async function deleteStockProduct(id){
+ if(!isAdmin())return alert('Apenas administradores podem excluir produtos.');
+ const produto=state.produtos.find(p=>sameId(p.id,id));
+ if(!produto)return alert('Produto não encontrado.');
+ if(!confirm(`Deseja realmente excluir o produto "${produto.nome}" do sistema? Esta ação não pode ser desfeita.`))return;
+ const {data,error}=await requireDb().from('produtos').delete().eq('id',id).select('id');
+ if(error){
+   const relacionado=error.code==='23503';
+   return alert(relacionado?'Não foi possível excluir este produto porque ele está vinculado a registros existentes (como pedidos). Nenhum dado foi apagado.':`Não foi possível excluir o produto: ${error.message}`);
+ }
+ if(!data||data.length===0)return alert('O banco não confirmou a exclusão. Verifique as permissões de exclusão da tabela produtos no Supabase.');
+ await loadProducts();renderAll();
+}
 function editProduct(id){const p=state.produtos.find(x=>sameId(x.id,id));if(!p)return;$('produtoId').value=p.id;$('nome').value=p.nome;$('fabricante').value=p.fabricante||'';$('quantidade').value=Number(p.quantidade||0);$('valor').value=Number(p.valor||0).toFixed(2);$('tipo').value=p.tipo;$('validade').value=p.validade||'';$('stockFormTitle').textContent='Editar produto';$('cancelProductEdit').style.display='block';openTab('estoque')}
 async function fileToDataUrl(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)})}
 async function submitProduct(e){
@@ -938,7 +951,7 @@ function bind(){
  });
  $('busca')?.addEventListener('input',renderStock);$('buscaDash')?.addEventListener('input',()=>renderProductArea('dashProducts'));$('buscaProdutos')?.addEventListener('input',()=>renderProductArea('produtosView'));
  $('dashProducts')?.addEventListener('click',catalogClick);$('produtosView')?.addEventListener('click',catalogClick);
- $('tbody')?.addEventListener('click',e=>{const save=e.target.dataset.saveStock,edit=e.target.dataset.editProduct;if(save)saveStock(save);if(edit)editProduct(edit)});
+ $('tbody')?.addEventListener('click',e=>{const btn=e.target.closest('button');if(!btn)return;const save=btn.dataset.saveStock,edit=btn.dataset.editProduct,del=btn.dataset.deleteStock;if(save)saveStock(save);if(edit)editProduct(edit);if(del)deleteStockProduct(del)});
  $('usersBody')?.addEventListener('click',e=>{
    const editButton=e.target.closest('[data-edit-client]');if(editButton){e.preventDefault();openClientEdit(editButton.dataset.editClient);return;}
    if(e.target.dataset.resetPassword)resetUserPassword(e.target.dataset.resetPassword);
