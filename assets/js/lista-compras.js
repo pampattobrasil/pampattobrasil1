@@ -345,7 +345,7 @@ async function loadOrders(filter=state.orderFilter||'ativos'){
      return `<article class="order-card ${completed?'order-completed':''} ${cancelled?'order-cancelled':''}" data-order-id="${o.id}">
        <div class="order-card-head">
          <div>
-           <strong class="order-number">Pedido nº ${esc(o.numero_pedido||formatExistingNumber(o.created_at,o.sequencial))}</strong>
+           <div class="order-number-line"><strong class="order-number">Pedido nº ${esc(o.numero_pedido||formatExistingNumber(o.created_at,o.sequencial))}</strong><button type="button" class="mini-btn" data-romaneio>Romaneio</button></div>
            <div class="shopping-list-meta">
              <span>${new Date(o.created_at).toLocaleString('pt-BR')}</span>
              <span>Cliente: <strong>${esc(o.cliente_nome||u.nome||'Cliente')}</strong></span>
@@ -353,16 +353,15 @@ async function loadOrders(filter=state.orderFilter||'ativos'){
            </div>
          </div>
          <div class="order-value-status">
-           ${mostrarPrecos?`<strong>${money(o.valor_total)}</strong>`:''} <button type="button" class="mini-btn" data-romaneio>Romaneio</button>
+           ${mostrarPrecos?`<strong>${money(o.valor_total)}</strong>`:''}
            <div><span class="tag ${completed?'status-completed':cancelled?'status-cancelled':''}">${esc(STATUS[normalizedStatus]||'Pedido realizado')}</span></div>
          </div>
        </div>
        ${(!cancelled&&!completed)?deliveryDeadlineInfo(o.created_at).html:''}
        ${cancelled?'':timeline(normalizedStatus)}
-       <div class="order-items">${(o.catalogo_pedido_itens||[]).sort((a,b)=>Number(a.ordem||0)-Number(b.ordem||0)).map(i=>`<div class="delivery-item-row"><span>${i.quantidade}× ${esc(i.produto_nome)}</span>${admin?`<label class="delivery-check-label"><input type="checkbox" data-delivery-id="${esc(i.id)}" ${i.entregue?'checked':''} ${completed||cancelled?'disabled':''}><span class="delivery-check-mark">✓</span></label>`:''}${mostrarPrecos?`<strong>${money(i.subtotal??(Number(i.quantidade||0)*Number(i.valor_unitario||0)))}</strong>`:''}</div>`).join('')}</div>
-       ${admin&&!completed&&!cancelled?'<button class="btn delivery-save-button" data-save-deliveries type="button" style="display:none">Salvar entregas</button>':''}
+       <div class="order-items">${(o.catalogo_pedido_itens||[]).sort((a,b)=>Number(a.ordem||0)-Number(b.ordem||0)).map(i=>`<div class="delivery-item-row"><span>${i.quantidade}× ${esc(i.produto_nome)}</span>${admin?`<label class="delivery-check-label"><input type="checkbox" data-delivery-id="${esc(i.id)}" ${i.entregue?'checked':''} ${completed||cancelled?'disabled':''}><span class="delivery-check-mark" aria-hidden="true"></span></label>`:''}${mostrarPrecos?`<strong>${money(i.subtotal??(Number(i.quantidade||0)*Number(i.valor_unitario||0)))}</strong>`:''}</div>`).join('')}</div>
        ${cancelled?'':`<div class="order-card-actions">
-         ${u.perfil==='admin'?`<div class="order-admin-status"><label>Alterar status</label><select data-status>${Object.entries(STATUS).filter(([k])=>k!=='cancelado').map(([k,v])=>`<option value="${k}" ${normalizedStatus===k?'selected':''}>${v}</option>`).join('')}</select><button class="btn status-save-button" type="button" data-save-status>Salvar status</button></div>`:''}
+         ${u.perfil==='admin'?`<div class="order-admin-status">${!completed&&!cancelled?'<button class="btn delivery-save-button" data-save-deliveries type="button" style="display:none">Salvar itens</button>':''}<label>Alterar status</label><select data-status>${Object.entries(STATUS).filter(([k])=>k!=='cancelado').map(([k,v])=>`<option value="${k}" ${normalizedStatus===k?'selected':''}>${v}</option>`).join('')}</select><button class="btn status-save-button" type="button" data-save-status>Salvar status</button></div>`:''}
          <button class="outline-btn order-delete-button" type="button" data-delete-order>Cancelar pedido</button>
        </div>`}
      </article>`;
@@ -385,11 +384,14 @@ function createRomaneio(card){
  const jspdf=window.jspdf;if(!jspdf?.jsPDF)return alert('Biblioteca PDF não disponível.');
  const doc=new jspdf.jsPDF();const numero=order.numero_pedido||formatExistingNumber(order.created_at,order.sequencial);
  const endereco=card.querySelector('.shopping-list-meta span:last-child')?.textContent||'';
- doc.setFontSize(16);doc.text('ROMANEIO DE ENTREGA',14,20);
- doc.setFontSize(11);doc.text('Pedido nº: '+numero,14,33);
- doc.text('Cliente: '+String(order.cliente_nome||'Cliente'),14,41,{maxWidth:180});
- const linhas=doc.splitTextToSize(endereco,180);doc.text(linhas,14,49);
- let y=49+linhas.length*6;
+ const logo=document.querySelector('img[src*="login-logo"]')||new Image();
+ if(!logo.src)logo.src='assets/images/login-logo.png';
+ try{if(logo.complete&&logo.naturalWidth){const ratio=logo.naturalWidth/logo.naturalHeight;const h=23;doc.addImage(logo,'PNG',(210-h*ratio)/2,8,h*ratio,h);}}catch(err){console.warn('Logotipo indisponível para PDF',err);}
+ doc.setFontSize(16);doc.text('ROMANEIO DE ENTREGA',105,40,{align:'center'});
+ doc.setFontSize(11);doc.text('Pedido nº: '+numero,14,49);
+ doc.text('Cliente: '+String(order.cliente_nome||'Cliente'),14,57,{maxWidth:180});
+ const linhas=doc.splitTextToSize(endereco,180);doc.text(linhas,14,65);
+ let y=65+linhas.length*6;
  doc.text('Data do pedido: '+new Date(order.created_at).toLocaleDateString('pt-BR'),14,y);y+=8;
  doc.text('Data de entrada: ____/____/________',14,y);y+=7;
  const items=(order.catalogo_pedido_itens||[]).slice().sort((a,b)=>Number(a.ordem||0)-Number(b.ordem||0));
