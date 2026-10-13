@@ -74,3 +74,19 @@
 #usersBody td{vertical-align:middle}
 #usersBody td:nth-child(3){min-width:155px;max-width:270px;overflow-wrap:anywhere}
 #clientEditModal{z-index:99999!important}
+
+/* Modal de edicao de clientes: sobreposicao visivel e centralizada. */
+#clientEditModal.modal-backdrop{
+ position:fixed!important;inset:0!important;width:100vw;height:100dvh;
+ background:rgba(0,0,0,.82);align-items:center;justify-content:center;
+ padding:20px;box-sizing:border-box;overflow-y:auto;z-index:2147483000!important;
+}
+#clientEditModal .modal-card{
+ position:relative;display:block;width:min(100%,520px);box-sizing:border-box;
+ background:#11100a;color:#f3c451;border:1px solid #b98716;border-radius:12px;
+ padding:24px;box-shadow:0 18px 65px rgba(0,0,0,.75);margin:auto;
+}
+#clientEditModal .user-form{grid-template-columns:minmax(0,1fr)!important}
+#clientEditModal .user-form label{display:flex;flex-direction:column;gap:5px}
+#clientEditModal .user-form input:not([type=checkbox]),#clientEditModal .user-form select{width:100%;box-sizing:border-box}
+#clientEditModal .user-form label:has(input[type=checkbox]){flex-direction:row;align-items:center}
