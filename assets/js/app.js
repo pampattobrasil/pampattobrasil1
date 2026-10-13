@@ -686,7 +686,7 @@ function openClientEdit(id){
  $('editClientCnpj').value=u.cnpj||'';$('editClientEndereco').value=u.endereco||'';
  $('editClientUsuario').value=u.usuario||'';$('editClientPerfil').value=u.perfil||'cliente';
  $('editClientAtivo').checked=!!u.ativo;$('editClientPrecos').checked=u.mostrar_precos!==false;
- $('clientEditModal').style.setProperty('display','flex','important');
+ const modal=$('clientEditModal');modal.style.setProperty('display','flex','important');modal.setAttribute('aria-hidden','false');
 }
 async function saveClientEdit(e){
  e.preventDefault();const id=$('editClientId').value;
@@ -940,7 +940,7 @@ function bind(){
  $('dashProducts')?.addEventListener('click',catalogClick);$('produtosView')?.addEventListener('click',catalogClick);
  $('tbody')?.addEventListener('click',e=>{const save=e.target.dataset.saveStock,edit=e.target.dataset.editProduct;if(save)saveStock(save);if(edit)editProduct(edit)});
  $('usersBody')?.addEventListener('click',e=>{
-   if(e.target.dataset.editClient)openClientEdit(e.target.dataset.editClient);
+   const editButton=e.target.closest('[data-edit-client]');if(editButton){e.preventDefault();openClientEdit(editButton.dataset.editClient);return;}
    if(e.target.dataset.resetPassword)resetUserPassword(e.target.dataset.resetPassword);
    if(e.target.dataset.toggleUser)toggleUser(e.target.dataset.toggleUser);
    if(e.target.dataset.deleteUser)deleteUser(e.target.dataset.deleteUser);
