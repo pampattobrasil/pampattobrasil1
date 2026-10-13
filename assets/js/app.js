@@ -280,13 +280,13 @@ function renderUsers(){
            <span class="price-visibility-text">${mostrar?'Exibir':'Ocultar'}</span>
          </label>`}
      </td>
-     <td>
+     <td><div class="client-action-grid">
        <button class="mini-btn" data-edit-client="${u.id}">Editar</button> <button class="mini-btn" data-reset-password="${u.id}">Alterar senha</button>
        ${u.usuario==='teste'
          ?'<span class="muted">Acesso principal</span>'
          :`<button class="mini-btn" data-toggle-user="${u.id}">${u.ativo?'Desativar':'Ativar'}</button>
            <button class="mini-btn danger" data-delete-user="${u.id}">Arquivar</button>`}
-     </td>
+     </div></td>
    </tr>`;
  }).join('');
 }
@@ -686,7 +686,7 @@ function openClientEdit(id){
  $('editClientCnpj').value=u.cnpj||'';$('editClientEndereco').value=u.endereco||'';
  $('editClientUsuario').value=u.usuario||'';$('editClientPerfil').value=u.perfil||'cliente';
  $('editClientAtivo').checked=!!u.ativo;$('editClientPrecos').checked=u.mostrar_precos!==false;
- $('clientEditModal').style.display='flex';
+ $('clientEditModal').style.setProperty('display','flex','important');
 }
 async function saveClientEdit(e){
  e.preventDefault();const id=$('editClientId').value;
@@ -696,7 +696,7 @@ async function saveClientEdit(e){
  const payload={nome,cnpj:$('editClientCnpj').value.trim(),endereco:$('editClientEndereco').value.trim(),usuario,perfil:$('editClientPerfil').value,ativo:$('editClientAtivo').checked,mostrar_precos:$('editClientPrecos').checked};
  const btn=e.target.querySelector('[type=submit]');btn.disabled=true;
  try{const {error}=await requireDb().from('usuarios').update(payload).eq('id',id);if(error)throw error;
- $('clientEditModal').style.display='none';await loadUsers();renderUsers();
+ $('clientEditModal').style.setProperty('display','none','important');await loadUsers();renderUsers();
  }catch(err){alert('Não foi possível salvar: '+err.message)}finally{btn.disabled=false}
 }
 
@@ -951,7 +951,7 @@ function bind(){
  $('stockForm')?.addEventListener('submit',submitProduct);$('cancelProductEdit')?.addEventListener('click',()=>{$('stockForm').reset();$('produtoId').value='';$('stockFormTitle').textContent='Cadastrar produto';$('cancelProductEdit').style.display='none'});
  $('userForm')?.addEventListener('submit',submitUser);
  $('clientEditForm')?.addEventListener('submit',saveClientEdit);
- $('closeClientEdit')?.addEventListener('click',()=>{$('clientEditModal').style.display='none'});
+ $('closeClientEdit')?.addEventListener('click',()=>{$('clientEditModal').style.setProperty('display','none','important')});
  $('exportBtn')?.addEventListener('click',async()=>{const snapshot={produtos:state.produtos,usuarios:state.usuarios,pedidos:state.pedidos,exportado_em:new Date().toISOString()};const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(snapshot,null,2)],{type:'application/json'}));a.download='pampatto-supabase-backup.json';a.click();URL.revokeObjectURL(a.href)});
 }
 function catalogClick(e){
