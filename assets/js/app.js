@@ -202,7 +202,7 @@ async function loadUsers(){
  if(!isAdmin())return;
  const {data,error}=await requireDb()
    .from('usuarios')
-   .select('id,nome,cnpj,usuario,perfil,ativo,mostrar_precos,created_at')
+   .select('id,nome,cnpj,usuario,perfil,ativo,mostrar_precos,endereco,created_at')
    .order('nome');
  if(error)throw error;
  state.usuarios=data||[];
@@ -267,7 +267,7 @@ function renderUsers(){
    return `
    <tr>
      <td>${esc(u.nome)}</td>
-     <td>${esc(u.cnpj||'—')}</td>
+     <td>${esc(u.cnpj||'—')}</td><td>${esc(u.endereco||'—')}</td>
      <td>${esc(u.usuario)}</td>
      <td><span class="password-mask">••••••••</span></td>
      <td><span class="role-badge">${u.perfil==='admin'?'Administrador':'Cliente'}</span></td>
@@ -281,7 +281,7 @@ function renderUsers(){
          </label>`}
      </td>
      <td>
-       <button class="mini-btn" data-reset-password="${u.id}">Alterar senha</button>
+       <button class="mini-btn" data-edit-client="${u.id}">Editar</button> <button class="mini-btn" data-reset-password="${u.id}">Alterar senha</button>
        ${u.usuario==='teste'
          ?'<span class="muted">Acesso principal</span>'
          :`<button class="mini-btn" data-toggle-user="${u.id}">${u.ativo?'Desativar':'Ativar'}</button>
@@ -679,6 +679,27 @@ async function submitProduct(e){
  await loadProducts();
  renderAll();
 }
+
+function openClientEdit(id){
+ const u=state.usuarios.find(x=>sameId(x.id,id));if(!u)return;
+ $('editClientId').value=u.id;$('editClientNome').value=u.nome||'';
+ $('editClientCnpj').value=u.cnpj||'';$('editClientEndereco').value=u.endereco||'';
+ $('editClientUsuario').value=u.usuario||'';$('editClientPerfil').value=u.perfil||'cliente';
+ $('editClientAtivo').checked=!!u.ativo;$('editClientPrecos').checked=u.mostrar_precos!==false;
+ $('clientEditModal').style.display='flex';
+}
+async function saveClientEdit(e){
+ e.preventDefault();const id=$('editClientId').value;
+ const nome=$('editClientNome').value.trim(),usuario=$('editClientUsuario').value.trim().toLowerCase();
+ if(!nome||!usuario)return alert('Preencha o nome e o usuário.');
+ if(state.usuarios.some(u=>!sameId(u.id,id)&&String(u.usuario).toLowerCase()===usuario))return alert('Este usuário já está cadastrado.');
+ const payload={nome,cnpj:$('editClientCnpj').value.trim(),endereco:$('editClientEndereco').value.trim(),usuario,perfil:$('editClientPerfil').value,ativo:$('editClientAtivo').checked,mostrar_precos:$('editClientPrecos').checked};
+ const btn=e.target.querySelector('[type=submit]');btn.disabled=true;
+ try{const {error}=await requireDb().from('usuarios').update(payload).eq('id',id);if(error)throw error;
+ $('clientEditModal').style.display='none';await loadUsers();renderUsers();
+ }catch(err){alert('Não foi possível salvar: '+err.message)}finally{btn.disabled=false}
+}
+
 async function submitUser(e){
  e.preventDefault();
 
@@ -687,6 +708,7 @@ async function submitUser(e){
  const usuario=$('clienteUsuario').value.trim().toLowerCase();
  const senha=$('clienteSenha').value;
  const perfil=$('clientePerfil').value;
+ const endereco=$('clienteEndereco').value.trim();
 
  if(!nome)return alert('Informe o nome do cliente.');
  if(!usuario)return alert('Informe o usuário de acesso.');
@@ -726,6 +748,9 @@ async function submitUser(e){
    return alert(`Não foi possível cadastrar o cliente.\n\n${msg||'Tente novamente.'}`);
  }
 
+ const criado=await requireDb().from('usuarios').select('id').eq('usuario',usuario).maybeSingle();
+ if(criado.error||!criado.data?.id){alert('Cliente cadastrado, mas não foi possível localizar o registro para salvar o endereço.');}
+ else if(endereco){const atualizado=await requireDb().from('usuarios').update({endereco}).eq('id',criado.data.id);if(atualizado.error)alert('Cliente cadastrado, mas o endereço não foi salvo: '+atualizado.error.message);}
  e.target.reset();
  await loadUsers();
  renderUsers();
@@ -915,6 +940,7 @@ function bind(){
  $('dashProducts')?.addEventListener('click',catalogClick);$('produtosView')?.addEventListener('click',catalogClick);
  $('tbody')?.addEventListener('click',e=>{const save=e.target.dataset.saveStock,edit=e.target.dataset.editProduct;if(save)saveStock(save);if(edit)editProduct(edit)});
  $('usersBody')?.addEventListener('click',e=>{
+   if(e.target.dataset.editClient)openClientEdit(e.target.dataset.editClient);
    if(e.target.dataset.resetPassword)resetUserPassword(e.target.dataset.resetPassword);
    if(e.target.dataset.toggleUser)toggleUser(e.target.dataset.toggleUser);
    if(e.target.dataset.deleteUser)deleteUser(e.target.dataset.deleteUser);
@@ -924,6 +950,8 @@ function bind(){
  });
  $('stockForm')?.addEventListener('submit',submitProduct);$('cancelProductEdit')?.addEventListener('click',()=>{$('stockForm').reset();$('produtoId').value='';$('stockFormTitle').textContent='Cadastrar produto';$('cancelProductEdit').style.display='none'});
  $('userForm')?.addEventListener('submit',submitUser);
+ $('clientEditForm')?.addEventListener('submit',saveClientEdit);
+ $('closeClientEdit')?.addEventListener('click',()=>{$('clientEditModal').style.display='none'});
  $('exportBtn')?.addEventListener('click',async()=>{const snapshot={produtos:state.produtos,usuarios:state.usuarios,pedidos:state.pedidos,exportado_em:new Date().toISOString()};const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(snapshot,null,2)],{type:'application/json'}));a.download='pampatto-supabase-backup.json';a.click();URL.revokeObjectURL(a.href)});
 }
 function catalogClick(e){
