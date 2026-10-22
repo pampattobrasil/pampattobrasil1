@@ -123,5 +123,33 @@
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
 <script src="assets/js/supabase-config.js?v=20260730-13" defer></script>
 <script src="assets/js/app.js?v=20261013-05" defer></script>
-<script src="assets/js/lista-compras.js?v=20261022-02" defer></script>
+<script src="assets/js/lista-compras.js?v=20261022-04" defer></script>
+
+<script>
+/* Garante o botão em cada cartão administrativo, inclusive após filtros e atualizações. */
+document.addEventListener('DOMContentLoaded',function(){
+ const container=document.getElementById('ordersContent');
+ if(!container)return;
+ function ensureButtons(){
+  const u=window.PAMPATTO_CURRENT_USER||window.currentUser;
+  if(u?.perfil!=='admin')return;
+  container.querySelectorAll('.order-card').forEach(card=>{
+   if(card.querySelector('[data-edit-order-items]'))return;
+   const line=card.querySelector('.order-number-line');
+   if(!line)return;
+   const button=document.createElement('button');
+   button.type='button';button.className='mini-btn';
+   button.setAttribute('data-edit-order-items','');
+   button.textContent='Adicionar ou remover';
+   line.appendChild(button);
+  });
+ }
+ let pending=false;
+ new MutationObserver(()=>{
+  if(pending)return;pending=true;
+  queueMicrotask(()=>{pending=false;ensureButtons()});
+ }).observe(container,{childList:true,subtree:true});
+ ensureButtons();
+});
+</script>
 </body></html>
