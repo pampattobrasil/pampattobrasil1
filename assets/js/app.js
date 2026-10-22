@@ -468,7 +468,7 @@ function renderReportResults(){
            <td><span class="tag ${['entregue','concluido'].includes(p.status)?'status-completed':p.status==='cancelado'?'status-cancelled':''}">${esc(reportStatusLabel(p.status))}</span></td>
            <td>${(p.catalogo_pedido_itens||[]).reduce((s,i)=>s+Number(i.quantidade||0),0)}</td>
            <td><strong>${money(p.valor_total)}</strong></td>
-           <td><button type="button" class="mini-btn" data-export-bling="${esc(p.id)}">Exportar Nota</button></td>
+           <td><button type="button" class="mini-btn" data-export-bling="${esc(p.id)}">Exportar Nota</button> <button type="button" class="mini-btn" data-edit-order="${esc(p.id)}">Adicionar ou remover</button></td>
          </tr>
          <tr class="report-items-row"><td colspan="7">
            <div class="report-products">${(p.catalogo_pedido_itens||[]).sort((a,b)=>Number(a.ordem||0)-Number(b.ordem||0)).map(i=>`
@@ -477,6 +477,39 @@ function renderReportResults(){
          </td></tr>`).join('')}</tbody>
      </table>
    </div>`:'<div class="empty">Nenhum pedido encontrado para os filtros selecionados.</div>';
+}
+let editingOrder=null;
+function openOrderItemEditor(id){
+ if(!isAdmin())return;
+ const order=state.pedidos.find(p=>sameId(p.id,id));if(!order)return;
+ editingOrder={id:order.id,items:(order.catalogo_pedido_itens||[]).map(i=>({nome:i.produto_nome,qtd:Number(i.quantidade),preco:Number(i.valor_unitario)}))};
+ let modal=$('orderItemsEditModal');
+ if(!modal){modal=document.createElement('div');modal.id='orderItemsEditModal';modal.style.cssText='position:fixed;inset:0;background:#0009;z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px';document.body.appendChild(modal)}
+ modal.innerHTML=`<section style="background:white;color:#222;border-radius:12px;padding:24px;width:min(750px,100%);max-height:90vh;overflow:auto"><h2>Adicionar ou remover itens — ${esc(order.numero_pedido||'Pedido')}</h2><div id="orderEditRows"></div><div style="display:flex;gap:10px;flex-wrap:wrap;margin:16px 0"><select id="orderEditProduct" style="flex:1;min-width:200px"><option value="">Selecione um produto</option>${state.produtos.map(p=>`<option value="${esc(p.id)}">${esc(p.nome)}</option>`).join('')}</select><button type="button" id="orderEditAdd">Adicionar item</button></div><div id="orderEditTotal"></div><div style="display:flex;gap:12px;justify-content:flex-end;margin-top:20px"><button type="button" id="orderEditCancel">Cancelar</button><button type="button" id="orderEditSave">Salvar alterações</button></div></section>`;
+ $('orderEditCancel').onclick=()=>{modal.remove();editingOrder=null};
+ $('orderEditAdd').onclick=()=>{const product=state.produtos.find(p=>sameId(p.id,$('orderEditProduct').value));if(!product)return alert('Selecione um produto.');const existing=editingOrder.items.find(i=>i.nome===product.nome);if(existing)existing.qtd++;else editingOrder.items.push({nome:product.nome,qtd:1,preco:Number(product.valor||0)});renderOrderEditRows()};
+ $('orderEditSave').onclick=saveOrderItemEditor;
+ renderOrderEditRows();
+}
+function renderOrderEditRows(){
+ if(!editingOrder)return;
+ $('orderEditRows').innerHTML=editingOrder.items.map((i,n)=>`<div style="display:flex;align-items:center;gap:10px;margin:10px 0;flex-wrap:wrap"><span style="flex:1;min-width:160px">${esc(i.nome)}</span><label>Qtd. <input type="number" min="0.001" step="any" data-order-qty="${n}" value="${i.qtd}" style="width:95px;padding:7px"></label><span>${money(i.qtd*i.preco)}</span><button type="button" data-order-remove="${n}">Remover</button></div>`).join('')||'<p>Nenhum item. Adicione um produto.</p>';
+ $('orderEditTotal').textContent='Total: '+money(editingOrder.items.reduce((sum,i)=>sum+i.qtd*i.preco,0));
+ $('orderEditRows').querySelectorAll('[data-order-qty]').forEach(input=>input.onchange=()=>{const n=Number(input.dataset.orderQty),q=Number(input.value);if(!Number.isFinite(q)||q<=0){alert('Informe uma quantidade maior que zero.');renderOrderEditRows();return}editingOrder.items[n].qtd=q;renderOrderEditRows()});
+ $('orderEditRows').querySelectorAll('[data-order-remove]').forEach(btn=>btn.onclick=()=>{editingOrder.items.splice(Number(btn.dataset.orderRemove),1);renderOrderEditRows()});
+}
+async function saveOrderItemEditor(){
+ if(!isAdmin()||!editingOrder)return;
+ if(!editingOrder.items.length)return alert('O pedido precisa conter pelo menos um item.');
+ const btn=$('orderEditSave');btn.disabled=true;
+ try{
+  const {error}=await requireDb().rpc('pampatto_admin_atualizar_itens_pedido',{p_pedido_id:editingOrder.id,p_admin_id:state.currentUser.id,p_itens:editingOrder.items.map(i=>({produto_nome:i.nome,quantidade:i.qtd,valor_unitario:i.preco}))});
+  if(error)throw error;
+  $('orderItemsEditModal')?.remove();editingOrder=null;
+  await loadOrderMetrics();renderMetrics();renderReports();
+  document.dispatchEvent(new CustomEvent('pampatto:orders-realtime'));
+  alert('Pedido atualizado com sucesso.');
+ }catch(err){alert('Não foi possível salvar as alterações: '+err.message+'\nVerifique se a migração SQL foi aplicada no Supabase.')}finally{btn.disabled=false}
 }
 function exportReportPdf(){
  const pedidos=filteredReportOrders();
@@ -568,6 +601,8 @@ function renderReports(){
  ['reportMes','reportAno','reportCliente'].forEach(id=>$(id)?.addEventListener('change',renderReportResults));
  $('reportNumero')?.addEventListener('input',renderReportResults);
  $('reportResults')?.addEventListener('click',e=>{
+   const edit=e.target.closest('[data-edit-order]');
+   if(edit){openOrderItemEditor(edit.dataset.editOrder);return;}
    const btn=e.target.closest('[data-export-bling]');
    if(btn)exportOrderBling(btn.dataset.exportBling);
  });
