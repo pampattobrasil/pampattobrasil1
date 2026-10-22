@@ -9,6 +9,7 @@ const LIST_STATUS={enviada:'Lista enviada',em_compra:'Em compra',comprada:'Compr
 const state={cart:[],orders:[],lists:[],channels:[],bound:false};
 const cartSyncTimers=new Map(),cartSyncChains=new Map(),cartPendingValues=new Map();
 const user=()=>window.PAMPATTO_CURRENT_USER||window.currentUser||null;
+const canEditOrderItems=()=>user()?.perfil==='admin'&&['nikolas','teste'].includes(String(user()?.usuario||'').trim().toLowerCase());
 const cartStorageKey=()=>{const u=user();return u?`pampatto_cart_draft_${String(u.id||u.usuario||'cliente')}`:null};
 function persistCartSnapshot(){
  const key=cartStorageKey();if(!key)return;
@@ -345,7 +346,7 @@ async function loadOrders(filter=state.orderFilter||'ativos'){
      return `<article class="order-card ${completed?'order-completed':''} ${cancelled?'order-cancelled':''}" data-order-id="${o.id}">
        <div class="order-card-head">
          <div>
-           <div class="order-number-line"><strong class="order-number">Pedido nº ${esc(o.numero_pedido||formatExistingNumber(o.created_at,o.sequencial))}</strong><button type="button" class="mini-btn" data-romaneio>Romaneio</button>${admin?`<button type="button" class="mini-btn" data-edit-order-items>Adicionar ou remover</button>`:""}</div>
+           <div class="order-number-line"><strong class="order-number">Pedido nº ${esc(o.numero_pedido||formatExistingNumber(o.created_at,o.sequencial))}</strong><button type="button" class="mini-btn" data-romaneio>Romaneio</button>${canEditOrderItems()?`<button type="button" class="mini-btn" data-edit-order-items>Adicionar ou remover</button>`:""}</div>
            <div class="shopping-list-meta">
              <span>${new Date(o.created_at).toLocaleString('pt-BR')}</span>
              <span>Cliente: <strong>${esc(o.cliente_nome||u.nome||'Cliente')}</strong></span>
@@ -372,7 +373,7 @@ async function loadOrders(filter=state.orderFilter||'ativos'){
  $('refreshOrdersBtn')?.addEventListener('click',()=>loadOrders(state.orderFilter));
 }
 async function openAdminItemsModal(card){
- const u=user();if(u?.perfil!=='admin')return;
+ const u=user();if(!canEditOrderItems())return;
  const order=state.orders.find(o=>String(o.id)===String(card.dataset.orderId));if(!order)return;
  const catalog=window.PAMPATTO_STATE?.produtos||[];
  let items=(order.catalogo_pedido_itens||[]).map(i=>({nome:i.produto_nome,qtd:Number(i.quantidade),preco:Number(i.valor_unitario)}));
@@ -388,7 +389,9 @@ async function openAdminItemsModal(card){
   const save=e.target.closest('[data-admin-save]');if(!save)return;
   if(!items.length){alert('O pedido precisa ter ao menos um item.');return;}
   save.disabled=true;save.textContent='Salvando...';
-  const {error}=await db().rpc('pampatto_admin_atualizar_itens_pedido',{p_pedido_id:order.id,p_admin_id:u.id,p_itens:items.map(i=>({produto_nome:i.nome,quantidade:i.qtd,valor_unitario:i.preco}))});
+  const senha=window.prompt('Confirme sua senha atual do Pampatto para salvar este pedido:');
+  if(senha===null){save.disabled=false;save.textContent='Salvar alterações';return;}
+  const {error}=await db().rpc('pampatto_editar_pedido_com_senha',{p_pedido_id:order.id,p_usuario:u.usuario,p_senha:senha,p_itens:items.map(i=>({produto_nome:i.nome,quantidade:i.qtd,valor_unitario:i.preco}))});
   if(error){alert('Não foi possível salvar: '+error.message);save.disabled=false;save.textContent='Salvar alterações';return;}
   overlay.remove();await loadOrders(state.orderFilter);if(typeof window.PAMPATTO_REFRESH_DATA==='function')window.PAMPATTO_REFRESH_DATA();
  });
