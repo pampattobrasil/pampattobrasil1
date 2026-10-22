@@ -345,7 +345,7 @@ async function loadOrders(filter=state.orderFilter||'ativos'){
      return `<article class="order-card ${completed?'order-completed':''} ${cancelled?'order-cancelled':''}" data-order-id="${o.id}">
        <div class="order-card-head">
          <div>
-           <div class="order-number-line"><strong class="order-number">Pedido nº ${esc(o.numero_pedido||formatExistingNumber(o.created_at,o.sequencial))}</strong><button type="button" class="mini-btn" data-romaneio>Romaneio</button></div>
+           <div class="order-number-line"><strong class="order-number">Pedido nº ${esc(o.numero_pedido||formatExistingNumber(o.created_at,o.sequencial))}</strong><button type="button" class="mini-btn" data-romaneio>Romaneio</button>${admin?`<button type="button" class="mini-btn" data-edit-order-items>Adicionar ou remover</button>`:""}</div>
            <div class="shopping-list-meta">
              <span>${new Date(o.created_at).toLocaleString('pt-BR')}</span>
              <span>Cliente: <strong>${esc(o.cliente_nome||u.nome||'Cliente')}</strong></span>
@@ -370,6 +370,29 @@ async function loadOrders(filter=state.orderFilter||'ativos'){
 
  target.querySelectorAll('[data-order-filter]').forEach(btn=>btn.addEventListener('click',()=>loadOrders(btn.dataset.orderFilter)));
  $('refreshOrdersBtn')?.addEventListener('click',()=>loadOrders(state.orderFilter));
+}
+async function openAdminItemsModal(card){
+ const u=user();if(u?.perfil!=='admin')return;
+ const order=state.orders.find(o=>String(o.id)===String(card.dataset.orderId));if(!order)return;
+ const catalog=window.PAMPATTO_STATE?.produtos||[];
+ let items=(order.catalogo_pedido_itens||[]).map(i=>({nome:i.produto_nome,qtd:Number(i.quantidade),preco:Number(i.valor_unitario)}));
+ const overlay=document.createElement('div');overlay.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;padding:16px';
+ overlay.innerHTML=`<section style="width:min(720px,100%);max-height:90vh;overflow:auto;background:#181611;color:#f4cf55;border:1px solid #b88a22;border-radius:14px;padding:22px"><h2>Adicionar ou remover — Pedido ${esc(order.numero_pedido||'')}</h2><div data-admin-rows></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0"><select data-admin-product style="flex:1;min-width:180px;padding:10px;background:#26221b;color:white"><option value="">Selecione um produto</option>${catalog.map((p,n)=>`<option value="${n}">${esc(p.nome)}</option>`).join('')}</select><button type="button" data-admin-add>Adicionar item</button></div><strong data-admin-total></strong><div style="display:flex;gap:12px;justify-content:flex-end;margin-top:20px"><button type="button" data-admin-cancel>Cancelar</button><button type="button" data-admin-save>Salvar alterações</button></div></section>`;
+ document.body.appendChild(overlay);
+ const render=()=>{overlay.querySelector('[data-admin-rows]').innerHTML=items.map((i,n)=>`<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0"><span style="flex:1;min-width:160px">${esc(i.nome)}</span><input aria-label="Quantidade" type="number" min="0.001" step="any" data-admin-qty="${n}" value="${i.qtd}" style="width:90px;padding:8px"><span>${money(i.qtd*i.preco)}</span><button type="button" data-admin-remove="${n}">Remover</button></div>`).join('')||'<p>Nenhum item</p>';overlay.querySelector('[data-admin-total]').textContent='Total: '+money(items.reduce((t,i)=>t+i.qtd*i.preco,0));};
+ render();
+ overlay.addEventListener('click',async e=>{
+  if(e.target===overlay||e.target.closest('[data-admin-cancel]')){overlay.remove();return;}
+  const remove=e.target.closest('[data-admin-remove]');if(remove){items.splice(Number(remove.dataset.adminRemove),1);render();return;}
+  if(e.target.closest('[data-admin-add]')){const idx=overlay.querySelector('[data-admin-product]').value;if(idx==='')return;const p=catalog[Number(idx)];const existing=items.find(i=>i.nome===p.nome);if(existing)existing.qtd++;else items.push({nome:p.nome,qtd:1,preco:Number(p.valor||0)});render();return;}
+  const save=e.target.closest('[data-admin-save]');if(!save)return;
+  if(!items.length){alert('O pedido precisa ter ao menos um item.');return;}
+  save.disabled=true;save.textContent='Salvando...';
+  const {error}=await db().rpc('pampatto_admin_atualizar_itens_pedido',{p_pedido_id:order.id,p_admin_id:u.id,p_itens:items.map(i=>({produto_nome:i.nome,quantidade:i.qtd,valor_unitario:i.preco}))});
+  if(error){alert('Não foi possível salvar: '+error.message);save.disabled=false;save.textContent='Salvar alterações';return;}
+  overlay.remove();await loadOrders(state.orderFilter);if(typeof window.PAMPATTO_REFRESH_DATA==='function')window.PAMPATTO_REFRESH_DATA();
+ });
+ overlay.addEventListener('change',e=>{const input=e.target.closest('[data-admin-qty]');if(!input)return;const q=Number(input.value);if(!Number.isFinite(q)||q<=0){alert('Informe uma quantidade válida.');render();return;}items[Number(input.dataset.adminQty)].qtd=q;render();});
 }
 function openOrderQuantityModal(card,itemId){
  if(user()?.perfil!=='admin')return;
@@ -657,6 +680,7 @@ function bind(){
  $('ordersContent')?.addEventListener('click',e=>{
    const card=e.target.closest('.order-card');
    if(!card)return;
+   if(e.target.closest('[data-edit-order-items]')){openAdminItemsModal(card);return;}
    const quantityButton=e.target.closest('[data-edit-quantity]');
    if(quantityButton)openOrderQuantityModal(card,quantityButton.dataset.editQuantity);
    if(e.target.matches('[data-romaneio]'))createRomaneio(card);
