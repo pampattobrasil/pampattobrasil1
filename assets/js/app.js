@@ -503,7 +503,9 @@ async function saveOrderItemEditor(){
  if(!editingOrder.items.length)return alert('O pedido precisa conter pelo menos um item.');
  const btn=$('orderEditSave');btn.disabled=true;
  try{
-  const {error}=await requireDb().rpc('pampatto_admin_atualizar_itens_pedido',{p_pedido_id:editingOrder.id,p_admin_id:state.currentUser.id,p_itens:editingOrder.items.map(i=>({produto_nome:i.nome,quantidade:i.qtd,valor_unitario:i.preco}))});
+  const senha=window.prompt('Confirme sua senha atual do Pampatto para salvar este pedido:');
+  if(senha===null)return;
+  const {error}=await requireDb().rpc('pampatto_editar_pedido_com_senha',{p_pedido_id:editingOrder.id,p_usuario:state.currentUser.usuario,p_senha:senha,p_itens:editingOrder.items.map(i=>({produto_nome:i.nome,quantidade:i.qtd,valor_unitario:i.preco}))});
   if(error)throw error;
   $('orderItemsEditModal')?.remove();editingOrder=null;
   await loadOrderMetrics();renderMetrics();renderReports();
